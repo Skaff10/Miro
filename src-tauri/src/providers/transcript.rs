@@ -254,7 +254,8 @@ impl TranscriptScanner {
                             }
                         }
                         if let Some(serde_json::Value::String(cmd)) = map.get("CommandLine") {
-                            extract_drive_paths_from_command(cmd, &mut entry.observed_paths);
+                            let decoded_cmd = unescape_embedded_json_string(cmd);
+                            extract_drive_paths_from_command(&decoded_cmd, &mut entry.observed_paths);
                         }
                     }
                 }
@@ -337,8 +338,23 @@ fn looks_like_fs_path(s: &str) -> bool {
         && (bytes[2] == b'\\' || bytes[2] == b'/')
 }
 
+fn unescape_embedded_json_string(raw: &str) -> String {
+    let mut cur = raw.trim().to_string();
+    for _ in 0..2 {
+        if cur.starts_with('"') && cur.ends_with('"') && cur.len() >= 2 {
+            if let Ok(decoded) = serde_json::from_str::<String>(&cur) {
+                cur = decoded.trim().to_string();
+                continue;
+            }
+        }
+        break;
+    }
+    cur
+}
+
 fn push_observed_path(list: &mut Vec<String>, raw_path: &str) {
-    let trimmed = raw_path.trim();
+    let decoded = unescape_embedded_json_string(raw_path);
+    let trimmed = decoded.trim().trim_matches('"');
     if trimmed.is_empty() {
         return;
     }
@@ -378,11 +394,35 @@ fn is_container_folder(seg: &str) -> bool {
             | "workspace"
             | "workspaces"
             | "github"
+            | "temp"
+            | "tmp"
     )
 }
 
-fn resolve_workspace_from_disk(paths: &[String]) -> Option<String> {
-    let mut counts: HashMap<String, usize> = HashMap::new();
+fn has_workspace_root_marker(dir: &Path) -> bool {
+    dir.join(".git").exists() || dir.join(".vscode").exists()
+}
+
+fn has_project_manifest_marker(dir: &Path) -> bool {
+    [
+        "package.json",
+        "Cargo.toml",
+        "pyproject.toml",
+        "pubspec.yaml",
+        "go.mod",
+        "tsconfig.json",
+        "requirements.txt",
+        "CMakeLists.txt",
+        "Makefile",
+    ]
+    .iter()
+    .any(|m| dir.join(m).exists())
+}
+
+pub fn resolve_workspace_from_disk(paths: &[String]) -> Option<String> {
+    let mut vcs_counts: HashMap<String, usize> = HashMap::new();
+    let mut manifest_counts: HashMap<String, usize> = HashMap::new();
+
     for raw in paths {
         let p = Path::new(raw);
         let start = if p.is_dir() {
@@ -396,27 +436,42 @@ fn resolve_workspace_from_disk(paths: &[String]) -> Option<String> {
         if !cur.exists() {
             continue;
         }
-        for _ in 0..8 {
+
+        let mut outermost_manifest: Option<String> = None;
+        for _ in 0..20 {
             let Some(name) = cur.file_name().and_then(|n| n.to_str()) else {
                 break;
             };
             if is_container_folder(name) || name.eq_ignore_ascii_case("Users") {
                 break;
             }
-            if cur.join(".git").exists() {
-                *counts.entry(name.to_string()).or_insert(0) += 1;
+            if has_workspace_root_marker(cur) {
+                *vcs_counts.entry(name.to_string()).or_insert(0) += 1;
                 break;
+            }
+            if has_project_manifest_marker(cur) {
+                outermost_manifest = Some(name.to_string());
             }
             let Some(parent) = cur.parent() else {
                 break;
             };
             cur = parent;
         }
+        if let Some(m_name) = outermost_manifest {
+            *manifest_counts.entry(m_name).or_insert(0) += 1;
+        }
     }
-    counts
+
+    vcs_counts
         .into_iter()
         .max_by_key(|(_, c)| *c)
         .map(|(name, _)| name)
+        .or_else(|| {
+            manifest_counts
+                .into_iter()
+                .max_by_key(|(_, c)| *c)
+                .map(|(name, _)| name)
+        })
 }
 
 /// Extracts the most likely project folder name from observed tool-call file paths

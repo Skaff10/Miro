@@ -19,7 +19,7 @@ use antigravity_agent_monitor_lib::providers::process::{
     extract_workspace_from_title, IdeWindowInfo,
 };
 use antigravity_agent_monitor_lib::providers::transcript::{
-    infer_workspace_folder, parse_iso8601_utc_secs, TranscriptScanner,
+    infer_workspace_folder, parse_iso8601_utc_secs, resolve_workspace_from_disk, TranscriptScanner,
 };
 use antigravity_agent_monitor_lib::providers::{
     AgentMonitorProvider, MonitorError, ProviderFuture, ProviderOutput,
@@ -302,6 +302,10 @@ fn test_window_title_workspace_extraction() {
         infer_workspace_folder(&["D:\\Projects\\BackendApi\\main.rs".to_string()]),
         Some("BackendApi".to_string())
     );
+    assert_eq!(
+        infer_workspace_folder(&["f:/Temp/Ftune/src/App.tsx".to_string()]),
+        Some("Ftune".to_string())
+    );
 }
 
 #[test]
@@ -409,6 +413,57 @@ fn test_transcript_extracts_folder_from_active_document_and_run_command() {
     assert_eq!(sessions.len(), 1);
     assert_eq!(sessions[0].title, "AlphaProject");
     assert_eq!(sessions[0].workspace.as_deref(), Some("AlphaProject"));
+
+    drop(_held_lock);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn test_double_encoded_transcript_paths_and_disk_manifest_resolution() {
+    let root = temp_test_dir("double-encoded");
+    let project_dir = root.join("CustomParent").join("Ftune");
+    let src_dir = project_dir.join("src");
+    fs::create_dir_all(&src_dir).unwrap();
+    let app_file = src_dir.join("App.tsx");
+    fs::write(&app_file, "export {};").unwrap();
+    fs::write(project_dir.join("package.json"), "{}").unwrap();
+
+    // Verify disk manifest resolution finds `Ftune` inside an arbitrary parent folder without `.git`.
+    assert_eq!(
+        resolve_workspace_from_disk(&[app_file.to_string_lossy().into_owned()]),
+        Some("Ftune".to_string())
+    );
+
+    let session_id = "cccccccc-dddd-eeee-ffff-111111111111";
+    let logs_dir = root.join("brain").join(session_id).join(".system_generated").join("logs");
+    let presence_dir = root.join("presence");
+    fs::create_dir_all(&logs_dir).unwrap();
+    fs::create_dir_all(&presence_dir).unwrap();
+
+    let lock_path = presence_dir.join(format!("{session_id}.lock"));
+    let _held_lock = File::create(&lock_path).unwrap();
+
+    // Antigravity serializes string tool arguments as JSON-encoded strings inside JSON.
+    let double_encoded_path = serde_json::to_string("f:\\Temp\\Ftune\\src\\App.tsx").unwrap();
+    let line = serde_json::json!({
+        "step_index": 1,
+        "source": "MODEL",
+        "type": "PLANNER_RESPONSE",
+        "status": "RUNNING",
+        "created_at": "2026-11-16T15:00:02Z",
+        "tool_calls": [{
+            "name": "read_file",
+            "args": { "Path": double_encoded_path }
+        }]
+    });
+    fs::write(logs_dir.join("transcript.jsonl"), format!("{line}\n")).unwrap();
+
+    let mut scanner = TranscriptScanner::default();
+    let t_step1 = parse_iso8601_utc_secs("2026-11-16T15:00:02Z").unwrap();
+    let sessions = scanner.scan_directory(&root, t_step1 + 1, true).unwrap();
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].title, "Ftune");
+    assert_eq!(sessions[0].workspace.as_deref(), Some("Ftune"));
 
     drop(_held_lock);
     let _ = fs::remove_dir_all(&root);
