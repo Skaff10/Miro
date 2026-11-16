@@ -1,4 +1,4 @@
-# Antigravity Agent Monitor
+# Miro - Antigravity Agent Monitor
 
 A lightweight, read-only Windows desktop overlay built with **Tauri 2**, **Rust**, **React**, **TypeScript**, and **Tailwind CSS** that continuously monitors active Google Antigravity IDE agent sessions.
 
