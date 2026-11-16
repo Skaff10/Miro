@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -9,11 +10,14 @@ use antigravity_agent_monitor_lib::domain::classifier::{
 use antigravity_agent_monitor_lib::domain::model::{
     AgentSession, AgentStatus, ConnectionState, StatusConfidence,
 };
+use antigravity_agent_monitor_lib::providers::composite::enrich_with_windows_and_uia;
 use antigravity_agent_monitor_lib::providers::hooks::{
     append_hook_event, disable_hooks_at, enable_hooks_at, is_hook_registered, HookEventTailer,
     RecordedHookEvent,
 };
-use antigravity_agent_monitor_lib::providers::process::extract_workspace_from_title;
+use antigravity_agent_monitor_lib::providers::process::{
+    extract_workspace_from_title, IdeWindowInfo,
+};
 use antigravity_agent_monitor_lib::providers::transcript::{
     infer_workspace_folder, parse_iso8601_utc_secs, TranscriptScanner,
 };
@@ -194,7 +198,11 @@ fn test_transcript_discovery_incremental_tailing_and_corrupt_line_resilience() {
     assert_eq!(sessions_after.len(), 1);
     assert_eq!(sessions_after[0].status, AgentStatus::Completed);
 
+    // Releasing the presence lock (closed tab/window) removes the session immediately.
     drop(_held_lock);
+    let sessions_closed = scanner.scan_directory(&root, t_step1 + 35, true).unwrap();
+    assert!(sessions_closed.is_empty());
+
     let _ = fs::remove_dir_all(&root);
 }
 
@@ -262,7 +270,12 @@ fn test_window_title_workspace_extraction() {
         extract_workspace_from_title("FTune - Antigravity IDE"),
         Some("FTune".to_string())
     );
+    assert_eq!(
+        extract_workspace_from_title("Core (Workspace) - Antigravity"),
+        Some("Core".to_string())
+    );
     assert_eq!(extract_workspace_from_title("Antigravity IDE"), None);
+    assert_eq!(extract_workspace_from_title("Welcome - Antigravity IDE"), None);
 
     assert_eq!(
         infer_workspace_folder(&[
@@ -275,6 +288,130 @@ fn test_window_title_workspace_extraction() {
         infer_workspace_folder(&["d:\\FTune\\FTune-mobile\\App.tsx".to_string()]),
         Some("FTune".to_string())
     );
+    assert_eq!(
+        infer_workspace_folder(&["C:\\Users\\skaf\\Desktop\\MyApp\\src\\App.tsx".to_string()]),
+        Some("MyApp".to_string())
+    );
+    assert_eq!(
+        infer_workspace_folder(&[
+            "C:\\Users\\skaf\\OneDrive\\Documents\\ClientPortal\\index.ts".to_string()
+        ]),
+        Some("ClientPortal".to_string())
+    );
+    assert_eq!(
+        infer_workspace_folder(&["D:\\Projects\\BackendApi\\main.rs".to_string()]),
+        Some("BackendApi".to_string())
+    );
+}
+
+#[test]
+fn test_new_window_folder_matching_and_closed_session_removal() {
+    let t0 = 1_700_002_000;
+
+    // 1. Multi-window enrichment resolves nested folder via open window title and matches
+    //    a brand-new unnamed session in a newly opened window.
+    let mut sessions = vec![
+        AgentSession {
+            id: "sess-1111".to_string(),
+            title: "Temporary Codebae".to_string(),
+            workspace: Some("Temporary Codebae".to_string()),
+            status: AgentStatus::Working,
+            activity: Some("Reading files".to_string()),
+            last_activity: Some(t0),
+            last_status_change: Some(t0),
+            source: "transcript".to_string(),
+            confidence: StatusConfidence::Inferred,
+            stale: false,
+            disconnected: false,
+        },
+        AgentSession {
+            id: "sess-2222".to_string(),
+            title: "Session sess-222".to_string(),
+            workspace: None,
+            status: AgentStatus::Working,
+            activity: Some("Processing user prompt".to_string()),
+            last_activity: Some(t0),
+            last_status_change: Some(t0),
+            source: "transcript".to_string(),
+            confidence: StatusConfidence::Inferred,
+            stale: false,
+            disconnected: false,
+        },
+    ];
+    let windows = vec![
+        IdeWindowInfo {
+            hwnd_raw: 1,
+            pid: 100,
+            title: "Antigravity IDE".to_string(),
+            workspace_name: None,
+        },
+        IdeWindowInfo {
+            hwnd_raw: 2,
+            pid: 100,
+            title: "main.py - Core - Antigravity IDE".to_string(),
+            workspace_name: Some("Core".to_string()),
+        },
+        IdeWindowInfo {
+            hwnd_raw: 3,
+            pid: 200,
+            title: "FreshApp - Antigravity IDE".to_string(),
+            workspace_name: Some("FreshApp".to_string()),
+        },
+    ];
+    let mut observed_paths = HashMap::new();
+    observed_paths.insert(
+        "sess-1111".to_string(),
+        vec!["f:\\Temporary Codebae\\Core\\backend\\main.py".to_string()],
+    );
+
+    enrich_with_windows_and_uia(&mut sessions, &windows, &[], &observed_paths);
+    assert_eq!(sessions[0].title, "Core");
+    assert_eq!(sessions[0].workspace.as_deref(), Some("Core"));
+    assert_eq!(sessions[1].title, "FreshApp");
+    assert_eq!(sessions[1].workspace.as_deref(), Some("FreshApp"));
+
+    // 2. When Antigravity is still running and a window/tab is closed (disappears from observed),
+    //    SessionStateTracker removes it immediately rather than leaving a disconnected/inactive card.
+    let mut tracker = SessionStateTracker::new(180, 120);
+    let initial = tracker.reconcile(sessions.clone(), t0, true);
+    assert_eq!(initial.len(), 2);
+
+    let after_closing_second_window = tracker.reconcile(vec![sessions[0].clone()], t0 + 2, true);
+    assert_eq!(after_closing_second_window.len(), 1);
+    assert_eq!(after_closing_second_window[0].id, "sess-1111");
+}
+
+#[test]
+fn test_transcript_extracts_folder_from_active_document_and_run_command() {
+    let root = temp_test_dir("transcript-paths");
+    let session_id = "bbbbbbbb-cccc-dddd-eeee-ffffffffffff";
+    let logs_dir = root.join("brain").join(session_id).join(".system_generated").join("logs");
+    let presence_dir = root.join("presence");
+    fs::create_dir_all(&logs_dir).unwrap();
+    fs::create_dir_all(&presence_dir).unwrap();
+
+    let lock_path = presence_dir.join(format!("{session_id}.lock"));
+    let _held_lock = File::create(&lock_path).unwrap();
+
+    let transcript_path = logs_dir.join("transcript.jsonl");
+    fs::write(
+        &transcript_path,
+        concat!(
+            "{\"step_index\":0,\"source\":\"USER_EXPLICIT\",\"type\":\"USER_INPUT\",\"status\":\"DONE\",\"created_at\":\"2026-11-16T15:00:00Z\",\"content\":\"Intro line with — em-dash\\nActive Document: C:\\\\Users\\\\skaf\\\\Desktop\\\\AlphaProject\\\\src\\\\main.ts (LANGUAGE_TYPESCRIPT)\"}\n",
+            "{\"step_index\":1,\"source\":\"MODEL\",\"type\":\"PLANNER_RESPONSE\",\"status\":\"RUNNING\",\"created_at\":\"2026-11-16T15:00:02Z\",\"tool_calls\":[{\"name\":\"run_command\",\"args\":{\"CommandLine\":\"npm test --prefix C:\\\\Users\\\\skaf\\\\Desktop\\\\AlphaProject\"}}]}\n"
+        ),
+    )
+    .unwrap();
+
+    let mut scanner = TranscriptScanner::default();
+    let t_step1 = parse_iso8601_utc_secs("2026-11-16T15:00:02Z").unwrap();
+    let sessions = scanner.scan_directory(&root, t_step1 + 1, true).unwrap();
+    assert_eq!(sessions.len(), 1);
+    assert_eq!(sessions[0].title, "AlphaProject");
+    assert_eq!(sessions[0].workspace.as_deref(), Some("AlphaProject"));
+
+    drop(_held_lock);
+    let _ = fs::remove_dir_all(&root);
 }
 
 #[tokio::test]

@@ -97,19 +97,17 @@ impl SessionStateTracker {
         for (id, entry) in self.entries.iter_mut() {
             if entry.last_seen_at < now_secs {
                 let age = now_secs.saturating_sub(entry.last_seen_at);
-                if age > self.retain_disconnected_secs {
+                // When Antigravity is still running and a session disappears (tab or window closed),
+                // remove it immediately instead of leaving stale/inactive cards behind.
+                if antigravity_running || age > self.retain_disconnected_secs {
                     to_remove.push(id.clone());
                     continue;
                 }
 
-                // Preserve last known status; never auto-promote to Completed on disconnect.
+                // Preserve last known status when Antigravity exits; never auto-promote to Completed.
                 entry.session.disconnected = true;
                 entry.session.stale = true;
-                if !antigravity_running {
-                    entry.session.activity = Some("Antigravity disconnected".to_string());
-                } else if entry.session.activity.is_none() {
-                    entry.session.activity = Some("Session no longer active".to_string());
-                }
+                entry.session.activity = Some("Antigravity disconnected".to_string());
             }
         }
         for id in to_remove {
@@ -158,12 +156,26 @@ fn merge_session(target: &mut AgentSession, incoming: AgentSession) {
         target.activity = incoming.activity;
     }
 
+    let incoming_has_full_path = incoming
+        .workspace
+        .as_deref()
+        .is_some_and(|w| w.contains('\\') || w.contains('/'));
+    let target_has_full_path = target
+        .workspace
+        .as_deref()
+        .is_some_and(|w| w.contains('\\') || w.contains('/'));
+
     if !incoming.title.starts_with("Session ")
-        && (target.title.starts_with("Session ") || incoming.title.len() > target.title.len())
+        && (target.title.starts_with("Session ")
+            || take_incoming_status
+            || incoming.title.len() > target.title.len())
     {
         target.title = incoming.title;
     }
-    if target.workspace.is_none() {
+    if target.workspace.is_none()
+        || (incoming.workspace.is_some()
+            && ((incoming_has_full_path && !target_has_full_path) || take_incoming_status))
+    {
         target.workspace = incoming.workspace;
     }
     match (target.last_activity, incoming.last_activity) {

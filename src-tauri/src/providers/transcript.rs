@@ -47,6 +47,8 @@ struct RawTranscriptMeta {
     #[serde(default)]
     created_at: String,
     #[serde(default)]
+    content: Option<serde_json::Value>,
+    #[serde(default)]
     tool_calls: Vec<RawToolCallMeta>,
 }
 
@@ -60,6 +62,13 @@ impl TranscriptScanner {
         let home = std::env::var_os("USERPROFILE")
             .or_else(|| std::env::var_os("HOME"))?;
         Some(PathBuf::from(home).join(".gemini").join("antigravity"))
+    }
+
+    pub fn observed_paths(&self, id: &str) -> &[String] {
+        self.cache
+            .get(id)
+            .map(|c| c.observed_paths.as_slice())
+            .unwrap_or(&[])
     }
 
     pub fn scan_directory(
@@ -103,20 +112,18 @@ impl TranscriptScanner {
             let lock_path = presence_dir.join(format!("{id}.lock"));
             let locked = is_lock_held(&lock_path);
 
+            // Only include sessions with an active OS presence lock; closed tabs/windows
+            // release their lock and should be removed immediately.
+            if !locked {
+                self.cache.remove(&id);
+                continue;
+            }
+
             let mtime_secs = fs::metadata(&transcript_path)
                 .ok()
                 .and_then(|m| m.modified().ok())
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs());
-
-            // Only include sessions that are currently locked by an active process, OR
-            // had recent transcript activity within the last 30 minutes while IDE is running.
-            let is_recent = mtime_secs
-                .map(|m| now_secs.saturating_sub(m) <= 1800)
-                .unwrap_or(false);
-            if !locked && !(antigravity_running && is_recent) {
-                continue;
-            }
 
             self.tail_transcript(&id, &transcript_path)?;
 
@@ -148,7 +155,8 @@ impl TranscriptScanner {
                             (status, confidence, activity, false, false)
                         };
 
-                    let inferred_workspace = infer_workspace_folder(&cached.observed_paths);
+                    let inferred_workspace = resolve_workspace_from_disk(&cached.observed_paths)
+                        .or_else(|| infer_workspace_folder(&cached.observed_paths));
                     let title = inferred_workspace
                         .clone()
                         .unwrap_or_else(|| short_session_title(&id));
@@ -221,6 +229,9 @@ impl TranscriptScanner {
                 continue;
             }
             if let Ok(parsed) = serde_json::from_str::<RawTranscriptMeta>(trimmed) {
+                if let Some(serde_json::Value::String(ref text)) = parsed.content {
+                    extract_metadata_paths_from_content(text, &mut entry.observed_paths);
+                }
                 let mut tool_names = Vec::new();
                 for tc in parsed.tool_calls {
                     if !tc.name.is_empty() {
@@ -234,10 +245,16 @@ impl TranscriptScanner {
                             "SearchPath",
                             "Cwd",
                             "ScriptPath",
+                            "AbsolutePath",
+                            "WorkspacePath",
+                            "ProjectPath",
                         ] {
                             if let Some(serde_json::Value::String(p)) = map.get(key) {
                                 push_observed_path(&mut entry.observed_paths, p);
                             }
+                        }
+                        if let Some(serde_json::Value::String(cmd)) = map.get("CommandLine") {
+                            extract_drive_paths_from_command(cmd, &mut entry.observed_paths);
                         }
                     }
                 }
@@ -257,17 +274,81 @@ impl TranscriptScanner {
     }
 }
 
+fn extract_metadata_paths_from_content(text: &str, list: &mut Vec<String>) {
+    for line in text.lines() {
+        let trimmed = line.trim();
+        for prefix in ["Active Document:", "Workspace:", "Directory:"] {
+            if trimmed
+                .get(..prefix.len())
+                .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
+            {
+                let mut rest = trimmed[prefix.len()..].trim();
+                if prefix.eq_ignore_ascii_case("Active Document:") {
+                    if let Some(idx) = rest.rfind(" (") {
+                        if rest.ends_with(')') {
+                            rest = rest[..idx].trim();
+                        }
+                    }
+                }
+                if looks_like_fs_path(rest) {
+                    push_observed_path(list, rest);
+                }
+            }
+        }
+    }
+}
+
+fn extract_drive_paths_from_command(cmd: &str, list: &mut Vec<String>) {
+    let mut rest = cmd;
+    while !rest.is_empty() {
+        let trimmed = rest.trim_start();
+        if trimmed.is_empty() {
+            break;
+        }
+        let token = if let Some(first) = trimmed.chars().next().filter(|&c| c == '"' || c == '\'') {
+            let after = &trimmed[first.len_utf8()..];
+            if let Some(end) = after.find(first) {
+                rest = &after[end + first.len_utf8()..];
+                &after[..end]
+            } else {
+                rest = "";
+                after
+            }
+        } else if let Some(end) = trimmed.find(char::is_whitespace) {
+            rest = &trimmed[end..];
+            &trimmed[..end]
+        } else {
+            rest = "";
+            trimmed
+        };
+
+        let clean = token.trim_matches(|c: char| matches!(c, '"' | '\'' | ',' | ';' | ')' | '('));
+        if looks_like_fs_path(clean) {
+            push_observed_path(list, clean);
+        }
+    }
+}
+
+fn looks_like_fs_path(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    bytes.len() >= 4
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+}
+
 fn push_observed_path(list: &mut Vec<String>, raw_path: &str) {
     let trimmed = raw_path.trim();
     if trimmed.is_empty() {
         return;
     }
-    // Skip Antigravity internal .gemini/AppData/Program Files paths so project folders win.
-    let lower = trimmed.to_ascii_lowercase();
+    // Skip Antigravity internal .gemini/AppData/Program Files/Windows paths so project folders win.
+    let lower = trimmed.to_ascii_lowercase().replace('/', "\\");
     if lower.contains("\\.gemini\\")
-        || lower.contains("/.gemini/")
         || lower.contains("\\appdata\\")
         || lower.contains("\\program files")
+        || lower.contains("\\programdata\\")
+        || lower.contains("\\windows\\")
     {
         return;
     }
@@ -277,6 +358,65 @@ fn push_observed_path(list: &mut Vec<String>, raw_path: &str) {
         }
         list.push(trimmed.to_string());
     }
+}
+
+fn is_container_folder(seg: &str) -> bool {
+    matches!(
+        seg.to_ascii_lowercase().as_str(),
+        "desktop"
+            | "documents"
+            | "downloads"
+            | "onedrive"
+            | "projects"
+            | "project"
+            | "repos"
+            | "repo"
+            | "work"
+            | "dev"
+            | "code"
+            | "coding"
+            | "workspace"
+            | "workspaces"
+            | "github"
+    )
+}
+
+fn resolve_workspace_from_disk(paths: &[String]) -> Option<String> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for raw in paths {
+        let p = Path::new(raw);
+        let start = if p.is_dir() {
+            Some(p)
+        } else {
+            p.parent()
+        };
+        let Some(mut cur) = start else {
+            continue;
+        };
+        if !cur.exists() {
+            continue;
+        }
+        for _ in 0..8 {
+            let Some(name) = cur.file_name().and_then(|n| n.to_str()) else {
+                break;
+            };
+            if is_container_folder(name) || name.eq_ignore_ascii_case("Users") {
+                break;
+            }
+            if cur.join(".git").exists() {
+                *counts.entry(name.to_string()).or_insert(0) += 1;
+                break;
+            }
+            let Some(parent) = cur.parent() else {
+                break;
+            };
+            cur = parent;
+        }
+    }
+    counts
+        .into_iter()
+        .max_by_key(|(_, c)| *c)
+        .map(|(name, _)| name)
 }
 
 /// Extracts the most likely project folder name from observed tool-call file paths
@@ -292,14 +432,16 @@ pub fn infer_workspace_folder(paths: &[String]) -> Option<String> {
         if segments.is_empty() {
             continue;
         }
-        // On Windows paths like `C:\Users\<user>\<folder>\...`, skip Users/<name>.
-        let candidate = if segments.len() >= 4
-            && segments[0].eq_ignore_ascii_case("Users")
-        {
-            segments[2]
+        // Skip `Users/<name>` and common container directories when deeper segments exist.
+        let mut idx = if segments.len() >= 4 && segments[0].eq_ignore_ascii_case("Users") {
+            2
         } else {
-            segments[0]
+            0
         };
+        while idx + 2 <= segments.len() && is_container_folder(segments[idx]) {
+            idx += 1;
+        }
+        let candidate = segments[idx];
         if !candidate.is_empty() && !candidate.starts_with('.') {
             *counts.entry(candidate.to_string()).or_insert(0) += 1;
         }

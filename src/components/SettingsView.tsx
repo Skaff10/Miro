@@ -143,7 +143,7 @@ export function SettingsView({
           </div>
 
           <ToggleRow
-            label="Show idle and closed sessions"
+            label="Show idle sessions"
             checked={settings.showIdleSessions}
             onChange={(v) => patch({ showIdleSessions: v })}
           />

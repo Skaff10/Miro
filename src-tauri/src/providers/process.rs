@@ -30,8 +30,16 @@ pub fn extract_workspace_from_title(title: &str) -> Option<String> {
     }
     let parts: Vec<&str> = trimmed.split(" - ").collect();
     if parts.len() >= 2 && parts.last().is_some_and(|p| p.contains("Antigravity")) {
-        let candidate = parts[parts.len() - 2].trim();
-        if !candidate.is_empty() && !candidate.eq_ignore_ascii_case("Antigravity IDE") {
+        let mut candidate = parts[parts.len() - 2].trim();
+        if let Some(stripped) = candidate.strip_suffix(" (Workspace)") {
+            candidate = stripped.trim();
+        }
+        if !candidate.is_empty()
+            && !candidate.eq_ignore_ascii_case("Antigravity IDE")
+            && !candidate.eq_ignore_ascii_case("Antigravity")
+            && !candidate.eq_ignore_ascii_case("Welcome")
+            && !candidate.eq_ignore_ascii_case("Get Started")
+        {
             return Some(candidate.to_string());
         }
     }
@@ -74,7 +82,7 @@ pub fn scan_antigravity_processes() -> Result<ProcessEnvironment, String> {
                     .to_string_lossy()
                     .to_ascii_lowercase();
 
-                if exe == "antigravity ide.exe" {
+                if exe == "antigravity ide.exe" || exe == "antigravity.exe" {
                     env.antigravity_ide_pids.insert(entry.th32ProcessID);
                 } else if exe == "agy.exe" {
                     env.agy_cli_pids.insert(entry.th32ProcessID);
