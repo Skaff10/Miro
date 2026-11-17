@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentSession, AgentStatus } from "../types/monitor";
 import { basenameFromPath, formatRelativeTime } from "../utils/time";
+import { LiquidGlassCapsule } from "./LiquidGlassCapsule";
 
 interface SessionCardProps {
   session: AgentSession;
@@ -8,13 +9,40 @@ interface SessionCardProps {
   onFocusSession: (session: AgentSession) => void;
 }
 
-const STATUS_META: Record<AgentStatus, { label: string; color: string }> = {
-  working: { label: "Working", color: "var(--status-working)" },
-  waiting: { label: "Waiting", color: "var(--status-waiting)" },
-  completed: { label: "Done", color: "var(--status-completed)" },
-  idle: { label: "Idle", color: "var(--status-idle)" },
-  unknown: { label: "Unknown", color: "var(--status-unknown)" },
-  error: { label: "Error", color: "var(--status-error)" },
+const STATUS_META: Record<
+  AgentStatus,
+  { label: string; color: string; orbColor: string }
+> = {
+  working: {
+    label: "Working",
+    color: "var(--status-working)",
+    orbColor: "var(--lg-orb-working)",
+  },
+  waiting: {
+    label: "Waiting",
+    color: "var(--status-waiting)",
+    orbColor: "var(--lg-orb-waiting)",
+  },
+  completed: {
+    label: "Done",
+    color: "var(--status-completed)",
+    orbColor: "var(--lg-orb-completed)",
+  },
+  idle: {
+    label: "Idle",
+    color: "var(--status-idle)",
+    orbColor: "var(--lg-orb-idle)",
+  },
+  unknown: {
+    label: "Unknown",
+    color: "var(--status-unknown)",
+    orbColor: "var(--lg-orb-unknown)",
+  },
+  error: {
+    label: "Error",
+    color: "var(--status-error)",
+    orbColor: "var(--lg-orb-error)",
+  },
 };
 
 export function SessionCard({
@@ -48,43 +76,48 @@ export function SessionCard({
   const isWaiting = session.status === "waiting" && !session.disconnected;
   const isError = session.status === "error" && !session.disconnected;
 
-  let borderClass = "border-[var(--border-hairline)] hover:border-[var(--border-strong)]";
+  let statusClass = "";
   if (isWorking) {
-    borderClass = "card-working-glow";
+    statusClass = "card-working-glow";
   } else if (isCompleted) {
-    borderClass = "card-completed-flash";
+    statusClass = "card-completed-flash";
   } else if (isWaiting) {
-    borderClass = "border-[#e5933a]/60";
+    statusClass = "card-waiting-accent";
   } else if (isError) {
-    borderClass = "border-[#e5484d]/60";
+    statusClass = "card-error-accent";
   }
 
   return (
-    <button
+    <LiquidGlassCapsule
       key={isCompleted ? `done-${flashKey}-${session.lastStatusChange ?? 0}` : undefined}
-      type="button"
+      as="button"
+      variant="card"
+      nativeBackdrop={false}
+      interactive
       data-testid={`session-card-${session.id}`}
       onClick={() => onFocusSession(session)}
       title={`Open ${displayName} in Antigravity IDE`}
-      className={`w-full text-left rounded-[8px] bg-[var(--bg-card)] border px-2.5 py-2 transition-colors duration-150 hover:bg-[var(--bg-raised)] cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-strong)] ${borderClass} ${
+      className={`w-full text-left rounded-[14px] px-3.5 py-2.5 cursor-pointer focus:outline-none ${statusClass} ${
         session.disconnected ? "opacity-65" : ""
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 min-w-0">
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2 min-w-0">
           <span
             aria-hidden="true"
-            className="w-2 h-2 rounded-full shrink-0"
-            style={{ backgroundColor: meta.color }}
+            data-status={session.status}
+            data-disconnected={session.disconnected ? "true" : "false"}
+            className="miro-status-orb w-2.5 h-2.5"
+            style={{ backgroundColor: meta.orbColor }}
           />
-          <span className="text-[12px] font-medium text-[var(--text-primary)] truncate">
+          <span className="text-[13px] font-medium tracking-[-0.005em] text-[var(--text-primary)] truncate">
             {displayName}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <span
-            className="text-[10px] font-medium"
+            className="text-[10.5px] font-medium"
             style={{ color: meta.color }}
           >
             {session.disconnected ? "Disconnected" : meta.label}
@@ -96,10 +129,10 @@ export function SessionCard({
       </div>
 
       {session.activity && (
-        <p className="mt-1 pl-3.5 text-[11px] leading-[15px] text-[var(--text-secondary)] truncate">
+        <p className="mt-1.5 pl-[18px] text-[11.5px] leading-[16px] text-[var(--text-secondary)] truncate">
           {session.activity}
         </p>
       )}
-    </button>
+    </LiquidGlassCapsule>
   );
 }

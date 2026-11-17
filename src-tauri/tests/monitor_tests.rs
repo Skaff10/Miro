@@ -4,11 +4,15 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use antigravity_agent_monitor_lib::collect_with_provider;
+use antigravity_agent_monitor_lib::config::load_settings;
 use antigravity_agent_monitor_lib::domain::classifier::{
     classify_transcript_step, SessionStateTracker,
 };
 use antigravity_agent_monitor_lib::domain::model::{
-    AgentSession, AgentStatus, ConnectionState, StatusConfidence,
+    AgentSession, AgentStatus, ConnectionState, DisplayMode, IndicatorPosition, StatusConfidence,
+};
+use antigravity_agent_monitor_lib::fullscreen::{
+    is_rect_fullscreen, is_shell_or_desktop_class, FullscreenHysteresis,
 };
 use antigravity_agent_monitor_lib::providers::composite::enrich_with_windows_and_uia;
 use antigravity_agent_monitor_lib::providers::hooks::{
@@ -584,4 +588,45 @@ async fn test_integration_lifecycle_scenarios() {
     let snap = collect_with_provider(&p_err, &tracker, t0 + 55, false).await;
     assert_eq!(snap.connection, ConnectionState::Error);
     assert!(snap.status_message.unwrap().contains("Permission error"));
+}
+
+#[test]
+fn test_fullscreen_detection_hysteresis_and_settings_backwards_compatibility() {
+    // Fullscreen geometry checks
+    assert!(is_rect_fullscreen((0, 0, 1920, 1080), (0, 0, 1920, 1080)));
+    assert!(is_rect_fullscreen((-1, -1, 1921, 1081), (0, 0, 1920, 1080)));
+    assert!(!is_rect_fullscreen((100, 100, 1280, 720), (0, 0, 1920, 1080)));
+    assert!(is_shell_or_desktop_class("Progman"));
+    assert!(is_shell_or_desktop_class("Shell_TrayWnd"));
+    assert!(!is_shell_or_desktop_class("UnrealWindow"));
+
+    // Hysteresis requires 2 consecutive matching samples to switch state
+    let mut h = FullscreenHysteresis::default();
+    assert_eq!(h.observe(true), None);
+    assert!(!h.is_fullscreen());
+    assert_eq!(h.observe(true), Some(true));
+    assert!(h.is_fullscreen());
+    assert_eq!(h.observe(false), None);
+    assert_eq!(h.observe(false), Some(false));
+    assert!(!h.is_fullscreen());
+
+    // Old settings.json without Focus Mode fields loads with sane defaults
+    let dir = temp_test_dir("settings-compat");
+    let cfg_path = dir.join("settings.json");
+    fs::write(
+        &cfg_path,
+        r#"{"alwaysOnTop":true,"startMinimized":true,"theme":"dark","pollIntervalMs":2500}"#,
+    )
+    .unwrap();
+    let loaded = load_settings(&cfg_path);
+    assert_eq!(loaded.display_mode, DisplayMode::Normal);
+    assert!(loaded.auto_fullscreen_focus);
+    assert_eq!(loaded.indicator_position, IndicatorPosition::BottomRight);
+    assert!(loaded.notify_on_completed);
+    assert!(loaded.notify_on_failed);
+    assert!(loaded.notify_on_attention);
+    assert!(!loaded.notify_on_started);
+    assert_eq!(loaded.notification_duration_secs, 5);
+    assert_eq!(loaded.focus_mode_hotkey, "Ctrl+Alt+F");
+    let _ = fs::remove_dir_all(&dir);
 }

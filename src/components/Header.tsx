@@ -1,19 +1,30 @@
-import { Minus, Settings, X } from "lucide-react";
+import { Bell, EyeOff, Minus, Settings, X } from "lucide-react";
+import type { DisplayMode } from "../types/monitor";
 
 interface HeaderProps {
   settingsOpen: boolean;
+  historyOpen: boolean;
+  unreadCount: number;
+  displayMode: DisplayMode;
   onToggleSettings: () => void;
+  onToggleHistory: () => void;
+  onCycleDisplayMode: () => void;
   onHideToTray: () => void;
 }
 
 export function Header({
   settingsOpen,
+  historyOpen,
+  unreadCount,
+  displayMode,
   onToggleSettings,
+  onToggleHistory,
+  onCycleDisplayMode,
   onHideToTray,
 }: HeaderProps) {
   return (
-    <header className="bg-[var(--bg-chrome)] border-b border-[var(--border-hairline)] select-none shrink-0">
-      <div className="flex items-center justify-between h-8 px-2.5 gap-2">
+    <header className="select-none shrink-0">
+      <div className="flex items-center justify-between h-10 px-3.5 pt-0.5 gap-2">
         <div
           data-tauri-drag-region
           className="flex items-center min-w-0 flex-1 h-full cursor-move"
@@ -31,7 +42,7 @@ export function Header({
               y="2"
               width="14"
               height="3.5"
-              rx="1"
+              rx="1.25"
               fill="var(--text-primary)"
               fillOpacity="0.88"
             />
@@ -40,7 +51,7 @@ export function Header({
               y="6.75"
               width="10"
               height="3.5"
-              rx="1"
+              rx="1.25"
               fill="var(--status-working)"
             />
             <rect
@@ -48,28 +59,64 @@ export function Header({
               y="11.5"
               width="12"
               height="3.5"
-              rx="1"
+              rx="1.25"
               fill="var(--text-muted)"
             />
           </svg>
         </div>
 
-        <div className="flex items-center gap-0.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={onCycleDisplayMode}
+            aria-label="Switch display mode"
+            title={`Display mode: ${displayMode} (click to switch to Compact / Focus)`}
+            className="miro-expand-btn w-7 h-7 rounded-full inline-flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-strong)]"
+          >
+            <EyeOff className="w-3.5 h-3.5" strokeWidth={1.6} />
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleHistory}
+            aria-label={
+              historyOpen ? "Close notification history" : "Notification history"
+            }
+            title="Notification history"
+            className={`miro-expand-btn relative w-7 h-7 rounded-full inline-flex items-center justify-center cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-strong)] ${
+              historyOpen
+                ? "bg-[var(--miro-control-hover)] text-[var(--text-primary)] shadow-[inset_0_0.5px_0_rgb(255_255_255_/_0.35),inset_0_0_0_0.5px_var(--border-hairline)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            {historyOpen ? (
+              <X className="w-3.5 h-3.5" strokeWidth={1.6} />
+            ) : (
+              <Bell className="w-3.5 h-3.5" strokeWidth={1.6} />
+            )}
+            {!historyOpen && unreadCount > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[var(--lg-orb-completed)] shadow-[0_0_0_1px_rgb(255_255_255_/_0.45)]"
+              />
+            )}
+          </button>
+
           <button
             type="button"
             onClick={onToggleSettings}
             aria-label={settingsOpen ? "Close settings" : "Open settings"}
             title="Settings"
-            className={`w-6 h-6 rounded-[5px] inline-flex items-center justify-center transition-colors duration-150 ${
+            className={`miro-expand-btn w-7 h-7 rounded-full inline-flex items-center justify-center cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-strong)] ${
               settingsOpen
-                ? "bg-[var(--bg-raised)] text-[var(--text-primary)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-raised)]"
+                ? "bg-[var(--miro-control-hover)] text-[var(--text-primary)] shadow-[inset_0_0.5px_0_rgb(255_255_255_/_0.35),inset_0_0_0_0.5px_var(--border-hairline)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             {settingsOpen ? (
-              <X className="w-3.5 h-3.5" strokeWidth={1.5} />
+              <X className="w-3.5 h-3.5" strokeWidth={1.6} />
             ) : (
-              <Settings className="w-3.5 h-3.5" strokeWidth={1.5} />
+              <Settings className="w-3.5 h-3.5" strokeWidth={1.6} />
             )}
           </button>
 
@@ -78,9 +125,9 @@ export function Header({
             onClick={onHideToTray}
             aria-label="Minimize to system tray"
             title="Minimize to tray"
-            className="w-6 h-6 rounded-[5px] inline-flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-raised)] transition-colors duration-150"
+            className="miro-expand-btn w-7 h-7 rounded-full inline-flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-strong)]"
           >
-            <Minus className="w-3.5 h-3.5" strokeWidth={1.5} />
+            <Minus className="w-3.5 h-3.5" strokeWidth={1.6} />
           </button>
         </div>
       </div>

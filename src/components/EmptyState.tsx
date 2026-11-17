@@ -9,50 +9,62 @@ interface EmptyStateProps {
 export function EmptyState({ connection, statusMessage }: EmptyStateProps) {
   if (connection === "antigravityNotRunning") {
     return (
-      <div className="flex flex-col items-center justify-center text-center px-3 py-4">
-        <MonitorOff
-          className="w-4 h-4 text-[var(--text-muted)] mb-1"
-          strokeWidth={1.5}
-        />
-        <p className="text-[11px] font-medium text-[var(--text-primary)]">
-          Antigravity IDE is not running
-        </p>
-        <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
-          Open a workspace to monitor agents
-        </p>
+      <div className="px-3 pb-3 pt-1">
+        <div className="miro-glass-section flex flex-col items-center justify-center text-center px-4 py-6">
+          <div className="w-8 h-8 rounded-full miro-glass-track flex items-center justify-center mb-2.5">
+            <MonitorOff
+              className="w-4 h-4 text-[var(--text-secondary)]"
+              strokeWidth={1.6}
+            />
+          </div>
+          <p className="text-[12.5px] font-medium text-[var(--text-primary)]">
+            Antigravity IDE is not running
+          </p>
+          <p className="mt-1 text-[11px] leading-[15px] text-[var(--text-muted)]">
+            Open a workspace to monitor agents
+          </p>
+        </div>
       </div>
     );
   }
 
   if (connection === "error") {
     return (
-      <div className="flex flex-col items-center justify-center text-center px-3 py-4">
-        <AlertTriangle
-          className="w-4 h-4 text-[var(--status-error)] mb-1"
-          strokeWidth={1.5}
-        />
-        <p className="text-[11px] font-medium text-[var(--text-primary)]">
-          Monitoring unavailable
-        </p>
-        <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
-          {statusMessage ?? "Unable to read session state"}
-        </p>
+      <div className="px-3 pb-3 pt-1">
+        <div className="miro-glass-section flex flex-col items-center justify-center text-center px-4 py-6">
+          <div className="w-8 h-8 rounded-full miro-glass-track flex items-center justify-center mb-2.5">
+            <AlertTriangle
+              className="w-4 h-4 text-[var(--status-error)]"
+              strokeWidth={1.6}
+            />
+          </div>
+          <p className="text-[12.5px] font-medium text-[var(--text-primary)]">
+            Monitoring unavailable
+          </p>
+          <p className="mt-1 text-[11px] leading-[15px] text-[var(--text-muted)]">
+            {statusMessage ?? "Unable to read session state"}
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center text-center px-3 py-4">
-      <Radio
-        className="w-4 h-4 text-[var(--text-muted)] mb-1"
-        strokeWidth={1.5}
-      />
-      <p className="text-[11px] font-medium text-[var(--text-primary)]">
-        No active sessions
-      </p>
-      <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
-        {statusMessage ?? "Start a conversation in Antigravity"}
-      </p>
+    <div className="px-3 pb-3 pt-1">
+      <div className="miro-glass-section flex flex-col items-center justify-center text-center px-4 py-6">
+        <div className="w-8 h-8 rounded-full miro-glass-track flex items-center justify-center mb-2.5">
+          <Radio
+            className="w-4 h-4 text-[var(--text-secondary)]"
+            strokeWidth={1.6}
+          />
+        </div>
+        <p className="text-[12.5px] font-medium text-[var(--text-primary)]">
+          No active sessions
+        </p>
+        <p className="mt-1 text-[11px] leading-[15px] text-[var(--text-muted)]">
+          {statusMessage ?? "Start a conversation in Antigravity"}
+        </p>
+      </div>
     </div>
   );
 }

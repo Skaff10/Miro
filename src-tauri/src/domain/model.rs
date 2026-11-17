@@ -55,6 +55,46 @@ pub enum ProviderMode {
     Mock,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DisplayMode {
+    Normal,
+    Compact,
+    Focus,
+}
+
+impl Default for DisplayMode {
+    fn default() -> Self {
+        Self::Normal
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum IndicatorPosition {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+impl Default for IndicatorPosition {
+    fn default() -> Self {
+        Self::BottomRight
+    }
+}
+
+impl IndicatorPosition {
+    pub fn as_preset_str(self) -> &'static str {
+        match self {
+            Self::TopLeft => "top-left",
+            Self::TopRight => "top-right",
+            Self::BottomLeft => "bottom-left",
+            Self::BottomRight => "bottom-right",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentSession {
@@ -104,6 +144,18 @@ pub struct AppSettings {
     pub hotkey: String,
     pub show_idle_sessions: bool,
     pub provider_mode: ProviderMode,
+    pub display_mode: DisplayMode,
+    pub auto_fullscreen_focus: bool,
+    pub indicator_position: IndicatorPosition,
+    pub notify_on_completed: bool,
+    pub notify_on_failed: bool,
+    pub notify_on_attention: bool,
+    pub notify_on_started: bool,
+    pub notification_duration_secs: u64,
+    pub notification_sound: bool,
+    pub focus_mode_hotkey: String,
+    pub expand_collapse_hotkey: String,
+    pub peek_panel_hotkey: String,
     pub window_x: Option<i32>,
     pub window_y: Option<i32>,
     pub window_width: u32,
@@ -121,9 +173,21 @@ impl Default for AppSettings {
             hotkey: "Ctrl+Shift+A".to_string(),
             show_idle_sessions: true,
             provider_mode: ProviderMode::Auto,
+            display_mode: DisplayMode::Normal,
+            auto_fullscreen_focus: true,
+            indicator_position: IndicatorPosition::BottomRight,
+            notify_on_completed: true,
+            notify_on_failed: true,
+            notify_on_attention: true,
+            notify_on_started: false,
+            notification_duration_secs: 5,
+            notification_sound: false,
+            focus_mode_hotkey: "Ctrl+Alt+F".to_string(),
+            expand_collapse_hotkey: "Ctrl+Alt+M".to_string(),
+            peek_panel_hotkey: "Ctrl+Alt+P".to_string(),
             window_x: None,
             window_y: None,
-            window_width: 240,
+            window_width: 304,
             window_height: 112,
         }
     }

@@ -1,5 +1,7 @@
+pub mod backdrop;
 pub mod config;
 pub mod domain;
+pub mod fullscreen;
 pub mod providers;
 pub mod tray_window;
 
@@ -9,11 +11,17 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{watch, Mutex};
 use tracing::{debug, info, warn};
 
+use crate::backdrop::{
+    sample_ambient_backdrop, sync_glass_regions as apply_glass_regions, BackdropSample,
+    GlassRegion,
+};
 use crate::config::{load_settings, save_settings, settings_file_path};
 use crate::domain::classifier::SessionStateTracker;
 use crate::domain::model::{
-    AppSettings, ConnectionState, HookIntegrationStatus, MonitorSnapshot, ProviderMode,
+    AppSettings, ConnectionState, DisplayMode, HookIntegrationStatus, MonitorSnapshot,
+    ProviderMode,
 };
+use crate::fullscreen::{is_foreground_fullscreen, FullscreenHysteresis};
 use crate::providers::composite::CompositeAntigravityProvider;
 use crate::providers::hooks::{
     disable_hooks, enable_hooks, get_status as get_hooks_status, hook_events_log_path,
@@ -22,11 +30,14 @@ use crate::providers::mock::MockMonitorProvider;
 use crate::providers::transcript::TranscriptScanner;
 use crate::providers::{now_unix_secs, AgentMonitorProvider};
 use crate::tray_window::{
-    apply_autostart, apply_window_preset, hide_to_tray, register_hotkey, setup_window_and_tray,
-    show_overlay_non_focusing, TrayControls, MAIN_WINDOW_LABEL,
+    apply_autostart, apply_display_mode_geometry, apply_window_preset, hide_to_tray,
+    minimize_to_taskbar, register_all_hotkeys, setup_window_and_tray, show_overlay_non_focusing,
+    try_acquire_single_instance_or_activate, TrayControls, MAIN_WINDOW_LABEL,
 };
 
 pub const SNAPSHOT_EVENT: &str = "monitor://snapshot";
+pub const FULLSCREEN_EVENT: &str = "monitor://fullscreen-changed";
+pub const BACKDROP_SAMPLE_EVENT: &str = "monitor://backdrop-sample";
 
 pub struct AppState {
     pub settings: Arc<Mutex<AppSettings>>,
@@ -98,8 +109,12 @@ async fn update_settings(
         apply_autostart(&app, clean.launch_at_startup);
     }
 
-    if previous.hotkey != clean.hotkey {
-        register_hotkey(&app, &clean.hotkey)?;
+    if previous.hotkey != clean.hotkey
+        || previous.focus_mode_hotkey != clean.focus_mode_hotkey
+        || previous.expand_collapse_hotkey != clean.expand_collapse_hotkey
+        || previous.peek_panel_hotkey != clean.peek_panel_hotkey
+    {
+        register_all_hotkeys(&app, &clean)?;
     }
 
     let _ = state.refresh_tx.send(now_unix_secs());
@@ -133,6 +148,60 @@ async fn hide_overlay_to_tray(app: AppHandle) -> Result<(), String> {
         hide_to_tray(&win);
     }
     Ok(())
+}
+
+#[tauri::command]
+async fn minimize_overlay(app: AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        minimize_to_taskbar(&win);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_overlay_geometry(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    mode: DisplayMode,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let settings = state.settings.lock().await.clone();
+    if let Some(win) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        apply_display_mode_geometry(
+            &win,
+            mode,
+            settings.indicator_position,
+            width,
+            height,
+            settings.window_x,
+            settings.window_y,
+        );
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn sync_glass_regions(app: AppHandle, regions: Vec<GlassRegion>) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        apply_glass_regions(&win, regions);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_backdrop_sample(app: AppHandle) -> Result<Option<BackdropSample>, String> {
+    let Some(win) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        return Ok(None);
+    };
+    tokio::task::spawn_blocking(move || sample_ambient_backdrop(&win))
+        .await
+        .map_err(|e| format!("Backdrop sample failed: {e}"))
+}
+
+#[tauri::command]
+async fn get_fullscreen_state() -> Result<bool, String> {
+    Ok(is_foreground_fullscreen())
 }
 
 #[tauri::command]
@@ -308,13 +377,17 @@ pub fn run() {
         )
         .init();
 
+    if !try_acquire_single_instance_or_activate() {
+        return;
+    }
+
     let loaded_settings = load_settings(&settings_file_path());
     let app_state = AppState::new(loaded_settings);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
+            Some(vec!["--autostart"]),
         ))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(app_state)
@@ -378,6 +451,61 @@ pub fn run() {
                 }
             });
 
+            let fs_app_handle = app.handle().clone();
+            let fs_settings_ref = state.settings.clone();
+            tauri::async_runtime::spawn(async move {
+                let mut hysteresis = FullscreenHysteresis::default();
+                loop {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(1500)).await;
+                    let enabled = fs_settings_ref.lock().await.auto_fullscreen_focus;
+                    if !enabled {
+                        if hysteresis.is_fullscreen() {
+                            hysteresis = FullscreenHysteresis::default();
+                            let _ = fs_app_handle.emit(FULLSCREEN_EVENT, false);
+                        }
+                        continue;
+                    }
+                    let raw = is_foreground_fullscreen();
+                    if let Some(changed) = hysteresis.observe(raw) {
+                        let _ = fs_app_handle.emit(FULLSCREEN_EVENT, changed);
+                    }
+                }
+            });
+
+            let bg_app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut last_sample: Option<BackdropSample> = None;
+                loop {
+                    if let Some(win) = bg_app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
+                        let visible = win.is_visible().unwrap_or(false)
+                            && !win.is_minimized().unwrap_or(false);
+                        if visible {
+                            let win_clone = win.clone();
+                            if let Ok(Some(sample)) =
+                                tokio::task::spawn_blocking(move || sample_ambient_backdrop(&win_clone))
+                                    .await
+                            {
+                                let changed = match &last_sample {
+                                    None => true,
+                                    Some(prev) => {
+                                        prev.transparency_effects_enabled
+                                            != sample.transparency_effects_enabled
+                                            || prev.r.abs_diff(sample.r) >= 4
+                                            || prev.g.abs_diff(sample.g) >= 4
+                                            || prev.b.abs_diff(sample.b) >= 4
+                                    }
+                                };
+                                if changed {
+                                    last_sample = Some(sample.clone());
+                                    let _ = bg_app_handle.emit(BACKDROP_SAMPLE_EVENT, &sample);
+                                }
+                            }
+                        }
+                    }
+                    tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -386,10 +514,15 @@ pub fn run() {
             update_settings,
             toggle_always_on_top,
             hide_overlay_to_tray,
+            minimize_overlay,
             show_overlay,
             set_window_preset,
             focus_session_window,
             set_overlay_height,
+            set_overlay_geometry,
+            sync_glass_regions,
+            get_backdrop_sample,
+            get_fullscreen_state,
             refresh_now,
             quit_app,
             get_hook_integration_status,

@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -70,6 +71,14 @@ describe("MIRO Compact Overlay Dashboard", () => {
       hookStatus: null,
       filter: "all",
       settingsOpen: false,
+      historyOpen: false,
+      displayMode: "normal",
+      preFullscreenMode: null,
+      isFullscreenActive: false,
+      peeking: false,
+      activeToasts: [],
+      notificationHistory: [],
+      backdropSample: null,
       loading: false,
       error: null,
     });
@@ -184,9 +193,164 @@ describe("MIRO Compact Overlay Dashboard", () => {
   it("opens settings view from header settings button", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Open settings" }));
+    expect(screen.getByText("Focus Mode & Display")).toBeInTheDocument();
     expect(screen.getByText("Overlay window")).toBeInTheDocument();
     expect(
       screen.getByText("Official hook bridge (opt-in)")
     ).toBeInTheDocument();
+  });
+
+  it("supports Compact Mode and Focus Mode with click-to-expand and fullscreen auto-switching", () => {
+    useMonitorStore.setState({
+      snapshot: {
+        sessions: SAMPLE_SESSIONS,
+        connection: "connected",
+        antigravityRunning: true,
+        statusMessage: null,
+        activeProviders: ["process", "transcript"],
+        hooksEnabled: false,
+        updatedAt: nowSecs,
+      },
+    });
+    render(<App />);
+
+    // Cycle Normal -> Compact -> Focus
+    fireEvent.click(screen.getByRole("button", { name: "Switch display mode" }));
+    expect(screen.getByTestId("compact-indicator")).toBeInTheDocument();
+    expect(screen.queryByTestId("session-card-sess-1")).not.toBeInTheDocument();
+
+    // Clicking compact indicator expands back to Normal Mode
+    fireEvent.click(screen.getByRole("button", { name: "Expand monitor panel" }));
+    expect(screen.getByTestId("session-card-sess-1")).toBeInTheDocument();
+
+    // Auto fullscreen switches Normal -> Focus Mode (no agent names visible) and restores Normal on exit
+    act(() => {
+      useMonitorStore.getState().setFullscreenActive(true);
+    });
+    expect(useMonitorStore.getState().displayMode).toBe("focus");
+    expect(screen.getByTestId("focus-indicator")).toBeInTheDocument();
+    expect(screen.queryByText("MIRO")).not.toBeInTheDocument();
+
+    act(() => {
+      useMonitorStore.getState().setFullscreenActive(false);
+    });
+    expect(useMonitorStore.getState().displayMode).toBe("normal");
+    expect(screen.getByTestId("session-card-sess-1")).toBeInTheDocument();
+  });
+
+  it("preserves dismissed notifications in Event History", () => {
+    useMonitorStore.getState().pushNotification({
+      id: "notif-1",
+      sessionId: "sess-1",
+      agentName: "MIRO",
+      eventType: "completed",
+      message: "Turn completed",
+      timestamp: nowSecs - 5,
+      read: false,
+    });
+    render(<App />);
+
+    expect(screen.getByTestId("notification-toast-stack")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss notification" }));
+    expect(screen.queryByTestId("notification-toast-stack")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Notification history" }));
+    expect(screen.getByTestId("notification-history-view")).toBeInTheDocument();
+    expect(screen.getByText("MIRO")).toBeInTheDocument();
+    expect(screen.getByText("Turn completed")).toBeInTheDocument();
+  });
+
+  it("renders single-surface liquid glass capsules with press feedback and mode morph classes", () => {
+    useMonitorStore.setState({
+      snapshot: {
+        sessions: SAMPLE_SESSIONS.slice(0, 2),
+        connection: "connected",
+        antigravityRunning: true,
+        statusMessage: null,
+        activeProviders: ["hooks"],
+        hooksEnabled: true,
+        updatedAt: nowSecs,
+      },
+      displayMode: "compact",
+    });
+
+    render(<App />);
+    const compact = screen.getByTestId("compact-indicator");
+    expect(compact.className).toContain("miro-glass-capsule");
+    expect(compact.getAttribute("data-variant")).toBe("compact");
+
+    // Cycle Compact -> Focus
+    act(() => {
+      useMonitorStore.getState().setDisplayMode("focus");
+    });
+
+    const focus = screen.getByTestId("focus-indicator");
+    expect(focus.className).toContain("miro-glass-capsule");
+    expect(focus.className).toContain("miro-morph-focus-compact");
+    expect(focus.getAttribute("data-variant")).toBe("focus");
+
+    fireEvent.pointerDown(focus, { clientX: 20, clientY: 12 });
+    expect(focus.getAttribute("data-pressed")).toBe("true");
+    fireEvent.pointerUp(focus);
+    expect(focus.getAttribute("data-pressed")).toBe("false");
+
+    // Cycle Focus -> Compact
+    act(() => {
+      useMonitorStore.getState().setDisplayMode("compact");
+    });
+    const compactReentered = screen.getByTestId("compact-indicator");
+    expect(compactReentered.className).toContain("miro-morph-compact-focus");
+  });
+
+  it("applies Liquid Glass surfaces across Normal Mode and adapts to backdrop samples", () => {
+    useMonitorStore.setState({
+      snapshot: {
+        sessions: SAMPLE_SESSIONS.slice(0, 2),
+        connection: "connected",
+        antigravityRunning: true,
+        statusMessage: null,
+        activeProviders: ["hooks"],
+        hooksEnabled: true,
+        updatedAt: nowSecs,
+      },
+      displayMode: "normal",
+    });
+
+    const { container } = render(<App />);
+
+    const panel = container.querySelector('.miro-glass-capsule[data-variant="panel"]');
+    expect(panel).not.toBeNull();
+    expect(panel?.getAttribute("data-glass-backdrop")).toBe("true");
+
+    const card = screen.getByTestId("session-card-sess-1");
+    expect(card.className).toContain("miro-glass-capsule");
+    expect(card.getAttribute("data-variant")).toBe("card");
+    expect(card.getAttribute("data-glass-backdrop")).toBeNull();
+
+    act(() => {
+      useMonitorStore.getState().setBackdropSample({
+        r: 238,
+        g: 242,
+        b: 250,
+        luminance: 0.88,
+        transparencyEffectsEnabled: true,
+      });
+    });
+
+    expect(document.documentElement.getAttribute("data-backdrop-tone")).toBe("bright");
+    expect(document.documentElement.style.getPropertyValue("--miro-ambient-r")).toBe("238");
+
+    act(() => {
+      useMonitorStore.getState().setBackdropSample({
+        r: 18,
+        g: 24,
+        b: 38,
+        luminance: 0.08,
+        transparencyEffectsEnabled: false,
+      });
+    });
+
+    expect(document.documentElement.getAttribute("data-backdrop-tone")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-reduce-transparency")).toBe("true");
   });
 });

@@ -51,10 +51,22 @@ pub fn save_settings(path: &Path, settings: &AppSettings) -> Result<(), String> 
 
 pub fn sanitize_settings(mut settings: AppSettings) -> AppSettings {
     settings.poll_interval_ms = settings.poll_interval_ms.clamp(1000, 30000);
-    settings.window_width = 240;
+    settings.window_width = 304;
     settings.window_height = settings.window_height.clamp(64, 680);
+    if !matches!(settings.notification_duration_secs, 0 | 3 | 5 | 10) {
+        settings.notification_duration_secs = 5;
+    }
     if settings.hotkey.trim().is_empty() {
         settings.hotkey = "Ctrl+Shift+A".to_string();
+    }
+    if settings.focus_mode_hotkey.trim().is_empty() {
+        settings.focus_mode_hotkey = "Ctrl+Alt+F".to_string();
+    }
+    if settings.expand_collapse_hotkey.trim().is_empty() {
+        settings.expand_collapse_hotkey = "Ctrl+Alt+M".to_string();
+    }
+    if settings.peek_panel_hotkey.trim().is_empty() {
+        settings.peek_panel_hotkey = "Ctrl+Alt+P".to_string();
     }
     settings
 }

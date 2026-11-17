@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   AppSettings,
+  DisplayMode,
   HookIntegrationStatus,
+  IndicatorPosition,
   ProviderMode,
   ThemeMode,
 } from "../types/monitor";
@@ -10,9 +12,8 @@ interface SettingsViewProps {
   settings: AppSettings;
   hookStatus: HookIntegrationStatus | null;
   onUpdateSettings: (next: AppSettings) => Promise<void>;
-  onSnapCorner: (
-    preset: "top-left" | "top-right" | "bottom-left" | "bottom-right"
-  ) => Promise<void>;
+  onSelectDisplayMode: (mode: DisplayMode) => void;
+  onSnapCorner: (preset: IndicatorPosition) => Promise<void>;
   onEnableHooks: () => Promise<void>;
   onDisableHooks: () => Promise<void>;
   onQuit: () => Promise<void>;
@@ -22,13 +23,35 @@ export function SettingsView({
   settings,
   hookStatus,
   onUpdateSettings,
+  onSelectDisplayMode,
   onSnapCorner,
   onEnableHooks,
   onDisableHooks,
   onQuit,
 }: SettingsViewProps) {
   const [hotkeyDraft, setHotkeyDraft] = useState(settings.hotkey);
+  const [focusHotkeyDraft, setFocusHotkeyDraft] = useState(
+    settings.focusModeHotkey
+  );
+  const [expandHotkeyDraft, setExpandHotkeyDraft] = useState(
+    settings.expandCollapseHotkey
+  );
+  const [peekHotkeyDraft, setPeekHotkeyDraft] = useState(
+    settings.peekPanelHotkey
+  );
   const [savingMsg, setSavingMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHotkeyDraft(settings.hotkey);
+    setFocusHotkeyDraft(settings.focusModeHotkey);
+    setExpandHotkeyDraft(settings.expandCollapseHotkey);
+    setPeekHotkeyDraft(settings.peekPanelHotkey);
+  }, [
+    settings.hotkey,
+    settings.focusModeHotkey,
+    settings.expandCollapseHotkey,
+    settings.peekPanelHotkey,
+  ]);
 
   const patch = async (partial: Partial<AppSettings>) => {
     setSavingMsg(null);
@@ -40,26 +63,193 @@ export function SettingsView({
   };
 
   return (
-    <div className="p-2.5 space-y-3 text-[11px]">
+    <div className="px-3.5 pb-3.5 pt-1 space-y-3.5 text-[11.5px]">
       {savingMsg && (
-        <div className="px-3 py-2 rounded-[8px] bg-[var(--bg-raised)] border border-[var(--status-error)] text-[var(--status-error)]">
+        <div className="miro-glass-section px-3 py-2 text-[var(--status-error)] shadow-[inset_0_0_0_0.5px_var(--status-error)]">
           {savingMsg}
         </div>
       )}
 
+      {/* Focus Mode & Display */}
+      <section className="space-y-1.5">
+        <h2 className="px-1 text-[11px] font-medium text-[var(--text-secondary)]">
+          Focus Mode & Display
+        </h2>
+        <div className="miro-glass-section divide-y divide-[var(--border-hairline)]">
+          <div className="p-3 space-y-2">
+            <span className="text-[var(--text-primary)] font-medium block">
+              Display mode
+            </span>
+            <div className="miro-glass-track grid grid-cols-3 gap-1 p-1">
+              {(
+                [
+                  { id: "normal", label: "Normal" },
+                  { id: "compact", label: "Compact" },
+                  { id: "focus", label: "Focus" },
+                ] as { id: DisplayMode; label: string }[]
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    onSelectDisplayMode(m.id);
+                    void patch({ displayMode: m.id });
+                  }}
+                  className={`px-2 py-1 rounded-full text-[11px] transition-all duration-150 cursor-pointer ${
+                    settings.displayMode === m.id
+                      ? "bg-[var(--miro-control-active)] text-[var(--text-primary)] font-medium shadow-[inset_0_1px_0_rgb(255_255_255_/_0.38),0_1px_3px_rgb(0_0_0_/_0.18)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-3 space-y-1.5">
+            <ToggleRowInline
+              label="Auto Focus Mode in fullscreen"
+              checked={settings.autoFullscreenFocus}
+              onChange={(v) => patch({ autoFullscreenFocus: v })}
+            />
+            <p className="text-[10.5px] leading-[14px] text-[var(--text-muted)]">
+              Switches to Focus Mode for borderless games and fullscreen video.
+              Exclusive DirectX/Vulkan fullscreen bypasses desktop overlays, so
+              events continue saving to History.
+            </p>
+          </div>
+
+          <div className="px-3 py-2.5 flex items-center justify-between gap-2">
+            <span className="text-[var(--text-primary)]">
+              Indicator position
+            </span>
+            <select
+              aria-label="Indicator position"
+              value={settings.indicatorPosition}
+              onChange={(e) =>
+                patch({
+                  indicatorPosition: e.target.value as IndicatorPosition,
+                })
+              }
+              className="px-2.5 py-1 rounded-full bg-[var(--miro-control-bg)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)] cursor-pointer"
+            >
+              <option value="top-left" className="bg-[#1e2026] text-[#f5f6f8]">
+                Top left
+              </option>
+              <option value="top-right" className="bg-[#1e2026] text-[#f5f6f8]">
+                Top right
+              </option>
+              <option value="bottom-left" className="bg-[#1e2026] text-[#f5f6f8]">
+                Bottom left
+              </option>
+              <option value="bottom-right" className="bg-[#1e2026] text-[#f5f6f8]">
+                Bottom right
+              </option>
+            </select>
+          </div>
+
+          <div className="px-3 py-2.5 flex items-center justify-between">
+            <span className="text-[var(--text-primary)]">Theme</span>
+            <div className="miro-glass-track flex items-center p-0.5 gap-0.5">
+              {(["dark", "light"] as ThemeMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => patch({ theme: mode })}
+                  className={`px-2.5 py-0.5 rounded-full capitalize text-[11px] transition-all duration-150 cursor-pointer ${
+                    settings.theme === mode
+                      ? "bg-[var(--miro-control-active)] text-[var(--text-primary)] font-medium shadow-[inset_0_1px_0_rgb(255_255_255_/_0.38),0_1px_2px_rgb(0_0_0_/_0.16)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <ToggleRow
+            label="Show idle sessions"
+            checked={settings.showIdleSessions}
+            onChange={(v) => patch({ showIdleSessions: v })}
+          />
+        </div>
+      </section>
+
+      {/* Smart Notifications */}
+      <section className="space-y-1.5">
+        <h2 className="px-1 text-[11px] font-medium text-[var(--text-secondary)]">
+          Notifications
+        </h2>
+        <div className="miro-glass-section divide-y divide-[var(--border-hairline)]">
+          <ToggleRow
+            label="Task completed"
+            checked={settings.notifyOnCompleted}
+            onChange={(v) => patch({ notifyOnCompleted: v })}
+          />
+          <ToggleRow
+            label="Task failed"
+            checked={settings.notifyOnFailed}
+            onChange={(v) => patch({ notifyOnFailed: v })}
+          />
+          <ToggleRow
+            label="Agent requires attention"
+            checked={settings.notifyOnAttention}
+            onChange={(v) => patch({ notifyOnAttention: v })}
+          />
+          <ToggleRow
+            label="Task started"
+            checked={settings.notifyOnStarted}
+            onChange={(v) => patch({ notifyOnStarted: v })}
+          />
+
+          <div className="px-3 py-2.5 flex items-center justify-between gap-2">
+            <span className="text-[var(--text-primary)]">Duration</span>
+            <select
+              aria-label="Notification duration"
+              value={settings.notificationDurationSecs}
+              onChange={(e) =>
+                patch({ notificationDurationSecs: Number(e.target.value) })
+              }
+              className="px-2.5 py-1 rounded-full bg-[var(--miro-control-bg)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)] cursor-pointer"
+            >
+              <option value={3} className="bg-[#1e2026] text-[#f5f6f8]">
+                3 seconds
+              </option>
+              <option value={5} className="bg-[#1e2026] text-[#f5f6f8]">
+                5 seconds
+              </option>
+              <option value={10} className="bg-[#1e2026] text-[#f5f6f8]">
+                10 seconds
+              </option>
+              <option value={0} className="bg-[#1e2026] text-[#f5f6f8]">
+                Until dismissed
+              </option>
+            </select>
+          </div>
+
+          <ToggleRow
+            label="Notification sounds"
+            checked={settings.notificationSound}
+            onChange={(v) => patch({ notificationSound: v })}
+          />
+        </div>
+      </section>
+
       {/* Window & Overlay */}
-      <section className="space-y-2">
-        <h2 className="text-[12px] font-medium text-[var(--text-secondary)]">
+      <section className="space-y-1.5">
+        <h2 className="px-1 text-[11px] font-medium text-[var(--text-secondary)]">
           Overlay window
         </h2>
-        <div className="rounded-[10px] bg-[var(--bg-card)] border border-[var(--border-hairline)] divide-y divide-[var(--border-hairline)]">
+        <div className="miro-glass-section divide-y divide-[var(--border-hairline)]">
           <ToggleRow
             label="Always on top"
             checked={settings.alwaysOnTop}
             onChange={(v) => patch({ alwaysOnTop: v })}
           />
           <ToggleRow
-            label="Start minimized to tray"
+            label="Start minimized on boot"
             checked={settings.startMinimized}
             onChange={(v) => patch({ startMinimized: v })}
           />
@@ -86,76 +276,71 @@ export function SettingsView({
                   key={corner.id}
                   type="button"
                   onClick={() => onSnapCorner(corner.id)}
-                  className="px-2.5 py-1.5 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border-hairline)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors duration-150"
+                  className="miro-glass-pill-btn px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   {corner.label}
                 </button>
               ))}
             </div>
           </div>
-
-          <div className="p-2.5 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[var(--text-primary)]">Toggle shortcut</span>
-            <div className="flex items-center gap-1.5">
-              <input
-                type="text"
-                aria-label="Global toggle shortcut"
-                value={hotkeyDraft}
-                onChange={(e) => setHotkeyDraft(e.target.value)}
-                className="w-24 px-2 py-1 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border-hairline)] font-mono-meta text-[11px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)]"
-              />
-              <button
-                type="button"
-                onClick={() => patch({ hotkey: hotkeyDraft })}
-                className="px-2 py-1 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors duration-150"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* Appearance & Display */}
-      <section className="space-y-2">
-        <h2 className="text-[12px] font-medium text-[var(--text-secondary)]">
-          Display
+      {/* Keyboard Shortcuts */}
+      <section className="space-y-1.5">
+        <h2 className="px-1 text-[11px] font-medium text-[var(--text-secondary)]">
+          Keyboard shortcuts
         </h2>
-        <div className="rounded-[10px] bg-[var(--bg-card)] border border-[var(--border-hairline)] divide-y divide-[var(--border-hairline)]">
-          <div className="px-3 py-2.5 flex items-center justify-between">
-            <span className="text-[var(--text-primary)]">Theme</span>
-            <div className="flex items-center p-0.5 rounded-[6px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
-              {(["dark", "light"] as ThemeMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => patch({ theme: mode })}
-                  className={`px-2.5 py-0.5 rounded-[4px] capitalize text-[11px] transition-colors duration-150 ${
-                    settings.theme === mode
-                      ? "bg-[var(--bg-raised)] text-[var(--text-primary)] font-medium"
-                      : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <ToggleRow
-            label="Show idle sessions"
-            checked={settings.showIdleSessions}
-            onChange={(v) => patch({ showIdleSessions: v })}
+        <div className="miro-glass-section p-3 space-y-2">
+          <ShortcutField
+            label="Show / Hide overlay"
+            ariaLabel="Global toggle shortcut"
+            value={hotkeyDraft}
+            onChange={setHotkeyDraft}
           />
+          <ShortcutField
+            label="Toggle Focus Mode"
+            ariaLabel="Toggle Focus Mode shortcut"
+            value={focusHotkeyDraft}
+            onChange={setFocusHotkeyDraft}
+          />
+          <ShortcutField
+            label="Expand / Collapse"
+            ariaLabel="Expand or collapse panel shortcut"
+            value={expandHotkeyDraft}
+            onChange={setExpandHotkeyDraft}
+          />
+          <ShortcutField
+            label="Temporary reveal"
+            ariaLabel="Temporarily reveal panel shortcut"
+            value={peekHotkeyDraft}
+            onChange={setPeekHotkeyDraft}
+          />
+          <div className="pt-1 flex justify-end">
+            <button
+              type="button"
+              onClick={() =>
+                patch({
+                  hotkey: hotkeyDraft,
+                  focusModeHotkey: focusHotkeyDraft,
+                  expandCollapseHotkey: expandHotkeyDraft,
+                  peekPanelHotkey: peekHotkeyDraft,
+                })
+              }
+              className="miro-glass-pill-btn px-3 py-1 text-[11px] font-medium text-[var(--text-primary)] cursor-pointer"
+            >
+              Apply shortcuts
+            </button>
+          </div>
         </div>
       </section>
 
       {/* Monitoring & Hooks */}
-      <section className="space-y-2">
-        <h2 className="text-[12px] font-medium text-[var(--text-secondary)]">
+      <section className="space-y-1.5">
+        <h2 className="px-1 text-[11px] font-medium text-[var(--text-secondary)]">
           Monitoring
         </h2>
-        <div className="rounded-[10px] bg-[var(--bg-card)] border border-[var(--border-hairline)] divide-y divide-[var(--border-hairline)]">
+        <div className="miro-glass-section divide-y divide-[var(--border-hairline)]">
           <div className="px-3 py-2.5 flex items-center justify-between">
             <span className="text-[var(--text-primary)]">Polling fallback</span>
             <select
@@ -164,22 +349,30 @@ export function SettingsView({
               onChange={(e) =>
                 patch({ pollIntervalMs: Number(e.target.value) })
               }
-              className="px-2 py-1 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border-hairline)] font-mono-meta text-[11px] text-[var(--text-primary)]"
+              className="px-2.5 py-1 rounded-full bg-[var(--miro-control-bg)] border border-[var(--border-hairline)] font-mono-meta text-[11px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)] cursor-pointer"
             >
-              <option value={1000}>1.0s</option>
-              <option value={2500}>2.5s</option>
-              <option value={5000}>5.0s</option>
-              <option value={10000}>10.0s</option>
+              <option value={1000} className="bg-[#1e2026] text-[#f5f6f8]">
+                1.0s
+              </option>
+              <option value={2500} className="bg-[#1e2026] text-[#f5f6f8]">
+                2.5s
+              </option>
+              <option value={5000} className="bg-[#1e2026] text-[#f5f6f8]">
+                5.0s
+              </option>
+              <option value={10000} className="bg-[#1e2026] text-[#f5f6f8]">
+                10.0s
+              </option>
             </select>
           </div>
 
           <div className="p-3 space-y-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2.5">
               <div>
                 <div className="text-[var(--text-primary)]">
                   Official hook bridge (opt-in)
                 </div>
-                <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                <div className="text-[10.5px] leading-[14px] text-[var(--text-muted)] mt-0.5">
                   Registers a lightweight observer in ~/.gemini/config/hooks.json
                   for confirmed turn and tool events
                 </div>
@@ -187,7 +380,7 @@ export function SettingsView({
               <button
                 type="button"
                 onClick={hookStatus?.enabled ? onDisableHooks : onEnableHooks}
-                className="px-2.5 py-1 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-primary)] hover:border-[var(--border-strong)] shrink-0 transition-colors duration-150"
+                className="miro-glass-pill-btn px-3 py-1 text-[11px] font-medium text-[var(--text-primary)] shrink-0 cursor-pointer"
               >
                 {hookStatus?.enabled ? "Disable" : "Enable"}
               </button>
@@ -196,7 +389,7 @@ export function SettingsView({
 
           <div className="px-3 py-2.5 flex items-center justify-between">
             <span className="text-[var(--text-primary)]">Source mode</span>
-            <div className="flex items-center p-0.5 rounded-[6px] bg-[var(--bg-canvas)] border border-[var(--border-hairline)]">
+            <div className="miro-glass-track flex items-center p-0.5 gap-0.5">
               {(
                 [
                   { id: "auto", label: "Live" },
@@ -207,10 +400,10 @@ export function SettingsView({
                   key={m.id}
                   type="button"
                   onClick={() => patch({ providerMode: m.id })}
-                  className={`px-2.5 py-0.5 rounded-[4px] text-[11px] transition-colors duration-150 ${
+                  className={`px-2.5 py-0.5 rounded-full text-[11px] transition-all duration-150 cursor-pointer ${
                     settings.providerMode === m.id
-                      ? "bg-[var(--bg-raised)] text-[var(--text-primary)] font-medium"
-                      : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                      ? "bg-[var(--miro-control-active)] text-[var(--text-primary)] font-medium shadow-[inset_0_1px_0_rgb(255_255_255_/_0.38),0_1px_2px_rgb(0_0_0_/_0.16)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {m.label}
@@ -225,12 +418,82 @@ export function SettingsView({
         <button
           type="button"
           onClick={onQuit}
-          className="px-3 py-1.5 rounded-[6px] bg-[var(--bg-raised)] border border-[var(--border-hairline)] text-[12px] text-[var(--status-error)] hover:border-[var(--status-error)] transition-colors duration-150"
+          className="miro-glass-pill-btn px-3.5 py-1.5 text-[11.5px] font-medium text-[var(--status-error)] cursor-pointer"
         >
           Quit Agent Monitor
         </button>
       </div>
     </div>
+  );
+}
+
+function ShortcutField({
+  label,
+  ariaLabel,
+  value,
+  onChange,
+}: {
+  label: string;
+  ariaLabel: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[var(--text-secondary)] truncate">{label}</span>
+      <input
+        type="text"
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-24 px-2.5 py-1 rounded-full bg-[var(--miro-control-bg)] border border-[var(--border-hairline)] font-mono-meta text-[10px] text-[var(--text-primary)] text-center focus:outline-none focus:border-[var(--border-strong)]"
+      />
+    </div>
+  );
+}
+
+function GlassSwitchControl({ checked }: { checked: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="relative inline-flex items-center w-8 h-[18px] rounded-full transition-colors duration-200 shrink-0"
+      style={{
+        backgroundColor: checked ? "var(--miro-switch-on)" : "var(--miro-switch-off)",
+        boxShadow:
+          "inset 0 1px 2px rgba(0,0,0,0.22), inset 0 0 0 0.5px rgba(255,255,255,0.2)",
+      }}
+    >
+      <span
+        className="w-[14px] h-[14px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.28)] transition-transform duration-200"
+        style={{
+          transitionTimingFunction: "var(--lg-spring)",
+          transform: checked ? "translateX(16px)" : "translateX(2px)",
+        }}
+      />
+    </span>
+  );
+}
+
+function ToggleRowInline({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 cursor-pointer">
+      <span className="text-[var(--text-primary)]">{label}</span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="sr-only"
+      />
+      <GlassSwitchControl checked={checked} />
+    </label>
   );
 }
 
@@ -244,14 +507,15 @@ function ToggleRow({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <label className="px-3 py-2.5 flex items-center justify-between cursor-pointer">
+    <label className="px-3 py-2.5 flex items-center justify-between gap-3 cursor-pointer">
       <span className="text-[var(--text-primary)]">{label}</span>
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="w-4 h-4 accent-[#ededed] cursor-pointer"
+        className="sr-only"
       />
+      <GlassSwitchControl checked={checked} />
     </label>
   );
 }

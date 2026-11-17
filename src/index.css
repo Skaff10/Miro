@@ -1,55 +1,289 @@
 @import "tailwindcss";
 
+/* Registered custom properties for smooth optical interpolation (Glassy UI pattern) */
+@property --miro-glass-lift {
+  syntax: "<number>";
+  initial-value: 0;
+  inherits: true;
+}
+
+@property --miro-rim-peak {
+  syntax: "<number>";
+  initial-value: 0.62;
+  inherits: true;
+}
+
+@property --miro-rim-counter {
+  syntax: "<number>";
+  initial-value: 0.36;
+  inherits: true;
+}
+
+@property --miro-glint-x {
+  syntax: "<percentage>";
+  initial-value: 24%;
+  inherits: true;
+}
+
+@property --miro-glint-y {
+  syntax: "<percentage>";
+  initial-value: 6%;
+  inherits: true;
+}
+
+@property --miro-glint-alpha {
+  syntax: "<number>";
+  initial-value: 0.62;
+  inherits: true;
+}
+
+@property --miro-capsule-rise {
+  syntax: "<number>";
+  initial-value: 1;
+  inherits: true;
+}
+
 @layer base {
   :root {
     --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
     --font-mono: "Cascadia Mono", "Consolas", ui-monospace, SFMono-Regular, monospace;
     --ease-out-quart: cubic-bezier(0.22, 1, 0.36, 1);
 
-    --bg-chrome: #0f0f10;
-    --bg-canvas: #141415;
-    --bg-card: #19191b;
-    --bg-raised: #232325;
-    --border-hairline: rgba(237, 237, 237, 0.08);
-    --border-strong: rgba(237, 237, 237, 0.14);
-    --text-primary: #ededed;
-    --text-secondary: #a1a1a6;
-    --text-muted: #85858b;
+    /* Glassy UI motion physics */
+    --lg-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --lg-ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+    --lg-ease-in: cubic-bezier(0.4, 0, 1, 1);
 
-    --status-working: #4cc38a;
-    --status-waiting: #e5933a;
-    --status-completed: #4d9cf6;
-    --status-idle: #85858b;
-    --status-unknown: #6b6b72;
-    --status-error: #e5484d;
+    /* Adaptive ambient wallpaper signal (updated from Rust desktop probe) */
+    --miro-ambient-r: 140;
+    --miro-ambient-g: 175;
+    --miro-ambient-b: 225;
+    --miro-ambient-rgb: var(--miro-ambient-r) var(--miro-ambient-g) var(--miro-ambient-b);
+    --miro-ambient-luma: 0.25;
+
+    /* Ink & semantic status tokens (default: dark/mid wallpaper) */
+    --text-primary: #f8f9fc;
+    --text-secondary: rgba(248, 249, 252, 0.84);
+    --text-muted: rgba(248, 249, 252, 0.66);
+    --text-shadow: 0 1px 2.5px rgb(0 0 0 / 0.36);
+
+    --bg-chrome: rgba(255, 255, 255, 0.04);
+    --bg-canvas: rgba(255, 255, 255, 0.05);
+    --bg-card: rgba(255, 255, 255, 0.07);
+    --bg-raised: rgba(255, 255, 255, 0.14);
+    --border-hairline: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.22);
+
+    --status-working: #68f0ac;
+    --status-waiting: #ffc166;
+    --status-completed: #89c8ff;
+    --status-idle: rgba(235, 238, 245, 0.72);
+    --status-unknown: #9da2b0;
+    --status-error: #ff7c87;
+
+    --lg-orb-working: #3de092;
+    --lg-orb-waiting: #f7a646;
+    --lg-orb-completed: #5aaeff;
+    --lg-orb-error: #f8636e;
+    --lg-orb-idle: #9fa3ad;
+    --lg-orb-unknown: #7e828c;
+
+    /* Liquid Glass optical surface tokens — ultra-transparent, background-reactive */
+    --miro-glass-tint-rgb: 248 250 255;
+    --miro-glass-alpha-panel: 0.055;
+    --miro-glass-alpha-compact: 0.045;
+    --miro-glass-alpha-focus: 0.04;
+    --miro-glass-alpha-toast: 0.08;
+    --miro-glass-alpha-card: 0.06;
+    --miro-glass-ambient-alpha: 0.065;
+
+    --miro-glass-blur: 16px;
+    --miro-glass-sat: 1.48;
+    --miro-glass-contrast: 1.03;
+    --miro-glass-brightness: 0.98;
+
+    --miro-sheen-top: 0.26;
+    --miro-sheen-mid: 0.045;
+    --miro-caustic-bottom: 0.14;
+    --miro-bevel-top: 0.62;
+    --miro-bevel-corner: 0.42;
+    --miro-bevel-bottom: 0.22;
+    --miro-inner-glow: 0.09;
+    --miro-inner-depth: 0.12;
+    --miro-ca-blue: 0.22;
+    --miro-ca-rose: 0.17;
+    --miro-noise-alpha: 0.014;
+    --miro-shadow-near: 0.24;
+    --miro-shadow-far: 0.2;
+    --miro-edge-contrast: rgb(255 255 255 / 0);
+
+    --miro-control-bg: rgb(255 255 255 / 0.09);
+    --miro-control-hover: rgb(255 255 255 / 0.17);
+    --miro-control-active: rgb(255 255 255 / 0.24);
+    --miro-track-bg: rgb(255 255 255 / 0.09);
+    --miro-switch-on: #3484f5;
+    --miro-switch-off: rgb(255 255 255 / 0.2);
+
+    --miro-noise-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48ZmlsdGVyIGlkPSJnIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC44NSIgbnVtT2N0YXZlcz0iMyIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPjxmZUNvbG9yTWF0cml4IHR5cGU9InNhdHVyYXRlIiB2YWx1ZXM9IjAiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgZmlsdGVyPSJ1cmwoI2cpIiBvcGFjaXR5PSIwLjUiLz48L3N2Zz4=");
   }
 
-  html.light {
-    --bg-chrome: #f0f0f2;
-    --bg-canvas: #fafafa;
-    --bg-card: #ffffff;
-    --bg-raised: #f4f4f5;
-    --border-hairline: rgba(23, 23, 23, 0.09);
-    --border-strong: rgba(23, 23, 23, 0.16);
-    --text-primary: #171717;
-    --text-secondary: #525252;
-    --text-muted: #737373;
+  /* Vibrant / mid-tone colorful wallpaper: subtle dark optical tempering preserves legible typography & crisp status hues */
+  html[data-backdrop-tone="balanced"] {
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.9);
+    --text-muted: rgba(255, 255, 255, 0.76);
+    --text-shadow: 0 1px 3px rgb(0 0 0 / 0.52), 0 0 1px rgb(0 0 0 / 0.28);
 
-    --status-working: #16a34a;
-    --status-waiting: #d97706;
-    --status-completed: #2563eb;
-    --status-idle: #737373;
-    --status-unknown: #9ca3af;
-    --status-error: #dc2626;
+    --status-working: #8bffc2;
+    --status-waiting: #ffd082;
+    --status-completed: #b8dcff;
+    --status-idle: rgba(255, 255, 255, 0.78);
+
+    --miro-glass-tint-rgb: 16 20 32;
+    --miro-glass-alpha-panel: 0.24;
+    --miro-glass-alpha-compact: 0.2;
+    --miro-glass-alpha-focus: 0.18;
+    --miro-glass-alpha-toast: 0.26;
+    --miro-glass-alpha-card: 0.14;
+    --miro-glass-brightness: 0.92;
+    --miro-glass-sat: 1.38;
+  }
+
+  /* Bright/daylight desktop background adaptation (clear luminous silver-white glass + dark ink) */
+  html[data-backdrop-tone="bright"] {
+    --text-primary: #111318;
+    --text-secondary: rgba(17, 19, 24, 0.78);
+    --text-muted: rgba(17, 19, 24, 0.62);
+    --text-shadow: 0 0.5px 0 rgb(255 255 255 / 0.55);
+
+    --bg-chrome: rgba(255, 255, 255, 0.16);
+    --bg-canvas: rgba(255, 255, 255, 0.18);
+    --bg-card: rgba(255, 255, 255, 0.22);
+    --bg-raised: rgba(255, 255, 255, 0.48);
+    --border-hairline: rgba(15, 23, 42, 0.08);
+    --border-strong: rgba(15, 23, 42, 0.18);
+
+    --status-working: #15803d;
+    --status-waiting: #b45309;
+    --status-completed: #1d4ed8;
+    --status-idle: #52525b;
+    --status-unknown: #71717a;
+    --status-error: #b91c1c;
+
+    --miro-glass-tint-rgb: 255 255 255;
+    --miro-glass-alpha-panel: 0.2;
+    --miro-glass-alpha-compact: 0.16;
+    --miro-glass-alpha-focus: 0.15;
+    --miro-glass-alpha-toast: 0.22;
+    --miro-glass-alpha-card: 0.2;
+    --miro-glass-ambient-alpha: 0.06;
+    --miro-glass-contrast: 1.06;
+    --miro-glass-brightness: 1.02;
+
+    --miro-sheen-top: 0.48;
+    --miro-sheen-mid: 0.1;
+    --miro-caustic-bottom: 0.22;
+    --miro-bevel-top: 0.96;
+    --miro-bevel-corner: 0.74;
+    --miro-bevel-bottom: 0.46;
+    --miro-inner-glow: 0.16;
+    --miro-inner-depth: 0.07;
+    --miro-ca-blue: 0.12;
+    --miro-ca-rose: 0.09;
+    --miro-shadow-near: 0.13;
+    --miro-shadow-far: 0.11;
+    --miro-edge-contrast: rgb(15 23 42 / 0.11);
+
+    --miro-control-bg: rgb(15 23 42 / 0.06);
+    --miro-control-hover: rgb(15 23 42 / 0.11);
+    --miro-control-active: rgb(255 255 255 / 0.8);
+    --miro-track-bg: rgb(15 23 42 / 0.06);
+    --miro-switch-off: rgb(15 23 42 / 0.18);
+  }
+
+  /* Explicit Light Theme preference over darker/mid backgrounds keeps frosted bright glass + dark ink */
+  html.light:not([data-backdrop-tone="bright"]) {
+    --text-primary: #14161b;
+    --text-secondary: rgba(20, 22, 27, 0.74);
+    --text-muted: rgba(20, 22, 27, 0.58);
+    --text-shadow: 0 0.5px 0 rgb(255 255 255 / 0.45);
+
+    --bg-chrome: rgba(255, 255, 255, 0.36);
+    --bg-canvas: rgba(255, 255, 255, 0.42);
+    --bg-card: rgba(255, 255, 255, 0.52);
+    --bg-raised: rgba(255, 255, 255, 0.72);
+    --border-hairline: rgba(15, 23, 42, 0.1);
+    --border-strong: rgba(15, 23, 42, 0.2);
+
+    --status-working: #15803d;
+    --status-waiting: #b45309;
+    --status-completed: #1d4ed8;
+    --status-idle: #52525b;
+    --status-unknown: #71717a;
+    --status-error: #b91c1c;
+
+    --miro-glass-tint-rgb: 252 253 255;
+    --miro-glass-alpha-panel: 0.24;
+    --miro-glass-alpha-compact: 0.22;
+    --miro-glass-alpha-focus: 0.2;
+    --miro-glass-alpha-toast: 0.28;
+    --miro-glass-alpha-card: 0.26;
+    --miro-glass-ambient-alpha: 0.08;
+
+    --miro-sheen-top: 0.54;
+    --miro-sheen-mid: 0.14;
+    --miro-caustic-bottom: 0.22;
+    --miro-bevel-top: 0.92;
+    --miro-bevel-corner: 0.7;
+    --miro-bevel-bottom: 0.44;
+    --miro-inner-glow: 0.14;
+    --miro-inner-depth: 0.05;
+    --miro-ca-blue: 0.12;
+    --miro-ca-rose: 0.09;
+    --miro-shadow-near: 0.15;
+    --miro-shadow-far: 0.14;
+    --miro-edge-contrast: rgb(15 23 42 / 0.07);
+
+    --miro-control-bg: rgb(15 23 42 / 0.07);
+    --miro-control-hover: rgb(15 23 42 / 0.12);
+    --miro-control-active: rgb(255 255 255 / 0.85);
+    --miro-track-bg: rgb(15 23 42 / 0.07);
+    --miro-switch-off: rgb(15 23 42 / 0.2);
+  }
+
+  /* Deep dark desktop wallpaper: ultra-low glass fill so wallpaper depth + bright specular rim pop */
+  html.dark[data-backdrop-tone="dark"] {
+    --miro-glass-alpha-panel: 0.05;
+    --miro-glass-alpha-compact: 0.04;
+    --miro-glass-alpha-focus: 0.035;
+    --miro-glass-alpha-toast: 0.07;
+    --miro-glass-alpha-card: 0.06;
+    --miro-sheen-top: 0.22;
+    --miro-bevel-top: 0.52;
+    --miro-ca-blue: 0.2;
+    --miro-ca-rose: 0.15;
+  }
+
+  html,
+  body {
+    background: transparent;
+    background-color: transparent;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  #root {
+    background: transparent;
+    background-color: transparent;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: var(--bg-canvas);
     color: var(--text-primary);
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
   }
 }
 
@@ -62,7 +296,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Quiet custom scrollbar matching graphite surface */
+/* Subtle glass scrollbar inside Normal mode */
 .overlay-scroll::-webkit-scrollbar {
   width: 4px;
 }
@@ -73,45 +307,799 @@
 
 .overlay-scroll::-webkit-scrollbar-thumb {
   background: var(--border-strong);
-  border-radius: 2px;
+  border-radius: 9999px;
 }
 
-@keyframes working-border-glow {
+/* ============================================================================
+   Unified Liquid Glass Surface System (Normal, Compact, Focus, Toast, Card)
+   ============================================================================ */
+
+.miro-glass-capsule {
+  --miro-glass-lift: 0;
+  --miro-rim-peak: 0.68;
+  --miro-rim-counter: 0.24;
+  --miro-rim-mid: 0.035;
+  --miro-glint-x: 24%;
+  --miro-glint-y: 6%;
+  --miro-glint-alpha: 0.62;
+  --miro-capsule-rise: 1;
+  --miro-active-alpha: var(--miro-glass-alpha-compact);
+
+  position: relative;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  text-shadow: var(--text-shadow);
+  contain: layout style;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+
+  box-shadow:
+    0 calc(var(--miro-capsule-rise) * 1px) calc(var(--miro-capsule-rise) * 2.5px)
+      0 rgb(0 0 0 / var(--miro-shadow-near)),
+    0 calc(var(--miro-capsule-rise) * 2px) calc(var(--miro-capsule-rise) * 4px)
+      calc(var(--miro-capsule-rise) * -1px) rgb(0 0 0 / var(--miro-shadow-far));
+
+  transition:
+    transform 260ms var(--lg-spring),
+    box-shadow 240ms var(--lg-ease-out),
+    color 200ms var(--lg-ease-out),
+    --miro-glass-lift 220ms var(--lg-ease-out),
+    --miro-rim-peak 240ms var(--lg-ease-out),
+    --miro-rim-counter 240ms var(--lg-ease-out),
+    --miro-glint-x 280ms var(--lg-ease-out),
+    --miro-glint-y 280ms var(--lg-ease-out),
+    --miro-glint-alpha 240ms var(--lg-ease-out),
+    --miro-capsule-rise 220ms var(--lg-ease-out);
+}
+
+.miro-glass-capsule[data-variant="panel"] {
+  border-radius: 20px;
+  --miro-active-alpha: var(--miro-glass-alpha-panel);
+  --miro-rim-peak: 0.72;
+  --miro-rim-counter: 0.24;
+  --miro-rim-mid: 0.03;
+  --miro-glint-alpha: 0.56;
+  box-shadow:
+    0 1.5px 4px -0.5px rgb(0 0 0 / var(--miro-shadow-near)),
+    0 3px 6px -1.5px rgb(0 0 0 / var(--miro-shadow-far));
+}
+
+.miro-glass-capsule[data-variant="compact"] {
+  border-radius: 9999px;
+  --miro-active-alpha: var(--miro-glass-alpha-compact);
+  --miro-rim-peak: 0.76;
+  --miro-rim-counter: 0.28;
+  --miro-rim-mid: 0.04;
+  --miro-glint-alpha: 0.72;
+}
+
+.miro-glass-capsule[data-variant="focus"] {
+  border-radius: 9999px;
+  --miro-active-alpha: var(--miro-glass-alpha-focus);
+  --miro-rim-peak: 0.8;
+  --miro-rim-counter: 0.3;
+  --miro-rim-mid: 0.045;
+  --miro-glint-alpha: 0.74;
+}
+
+.miro-glass-capsule[data-variant="toast"] {
+  border-radius: 14px;
+  --miro-active-alpha: var(--miro-glass-alpha-toast);
+  --miro-rim-peak: 0.7;
+  --miro-rim-counter: 0.26;
+  --miro-rim-mid: 0.04;
+  --miro-glint-alpha: 0.62;
+  box-shadow:
+    0 1.5px 4px -0.5px rgb(0 0 0 / var(--miro-shadow-near)),
+    0 3px 6px -1.5px rgb(0 0 0 / var(--miro-shadow-far));
+}
+
+.miro-glass-capsule[data-variant="card"] {
+  border-radius: 14px;
+  --miro-active-alpha: var(--miro-glass-alpha-card);
+  --miro-rim-peak: 0.34;
+  --miro-rim-counter: 0.12;
+  --miro-rim-mid: 0.015;
+  --miro-glint-alpha: 0.36;
+  --miro-capsule-rise: 0.35;
+
+  box-shadow:
+    0 1px 2px -0.5px rgb(0 0 0 / calc(var(--miro-shadow-near) * 0.45)),
+    0 2px 5px -2px rgb(0 0 0 / calc(var(--miro-shadow-far) * 0.4));
+}
+
+html[data-backdrop-tone="bright"] .miro-glass-capsule,
+html.light .miro-glass-capsule {
+  --miro-rim-peak: 0.96;
+  --miro-rim-counter: 0.44;
+  --miro-rim-mid: 0.1;
+  --miro-glint-alpha: 0.98;
+}
+
+html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="panel"],
+html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="compact"],
+html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="focus"],
+html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="toast"] {
+  box-shadow:
+    0 0 0 0.5px rgb(15 23 42 / 0.1),
+    0 1px 2.5px 0 rgb(15 23 42 / var(--miro-shadow-near)),
+    0 2.5px 4.5px -1px rgb(15 23 42 / var(--miro-shadow-far));
+}
+
+html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="card"],
+html.light .miro-glass-capsule[data-variant="card"] {
+  --miro-rim-peak: 0.72;
+  --miro-rim-counter: 0.28;
+  --miro-rim-mid: 0.05;
+  --miro-glint-alpha: 0.68;
+}
+
+/* Children sit cleanly above optical material layers */
+.miro-glass-capsule > :not(.miro-glass-noise):not(.miro-glass-bloom) {
+  position: relative;
+  z-index: 2;
+}
+
+/* Layer 0: Translucent body tint, curved liquid meniscus reflections, ambient caustic, and prismatic bevel stack */
+.miro-glass-capsule::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background-color: rgb(var(--miro-glass-tint-rgb) / calc(var(--miro-active-alpha) + var(--miro-glass-lift)));
+  background-image:
+    /* Primary overhead curved glass dome glint */
+    radial-gradient(
+      115% 62% at var(--miro-glint-x) var(--miro-glint-y),
+      rgb(255 255 255 / calc(var(--miro-sheen-top) + var(--miro-glass-lift) * 0.75)),
+      rgb(255 255 255 / var(--miro-sheen-mid)) 46%,
+      transparent 74%
+    ),
+    /* Bottom-edge internal caustic bounce */
+    radial-gradient(
+      85% 48% at 72% 108%,
+      rgb(255 255 255 / var(--miro-caustic-bottom)),
+      transparent 68%
+    ),
+    /* Ambient desktop color catch along glass thickness */
+    radial-gradient(
+      95% 70% at 24% 96%,
+      rgb(var(--miro-ambient-rgb) / var(--miro-glass-ambient-alpha)),
+      transparent 72%
+    ),
+    /* Subtle liquid depth gradient */
+    linear-gradient(
+      166deg,
+      rgb(255 255 255 / calc(var(--miro-sheen-mid) * 1.4)) 0%,
+      transparent 44%,
+      rgb(255 255 255 / calc(var(--miro-sheen-mid) * 0.6)) 100%
+    );
+
+  box-shadow:
+    inset 0 0 0 0.5px var(--miro-edge-contrast),
+    inset 0 0 14px -4px rgb(255 255 255 / var(--miro-inner-glow)),
+    inset 0 1px 0.75px 0 rgb(255 255 255 / var(--miro-bevel-top)),
+    inset 1.5px 1.5px 1.5px -0.5px rgb(255 255 255 / var(--miro-bevel-corner)),
+    inset 0 -1px 1.2px 0 rgb(255 255 255 / var(--miro-bevel-bottom)),
+    inset 2px 0.75px 4.5px -1.5px rgb(98 206 255 / var(--miro-ca-blue)),
+    inset -2px -0.75px 4.5px -1.5px rgb(255 138 188 / var(--miro-ca-rose)),
+    inset 0 2.5px 6px -3px rgb(0 0 0 / var(--miro-inner-depth));
+
+  transition:
+    background-color 200ms var(--lg-ease-out),
+    box-shadow 220ms var(--lg-ease-out);
+}
+
+/* Browser / non-Tauri preview mirrors native DWM HostBackdropBrush blur & saturation */
+html[data-glass-host="browser"] .miro-glass-capsule[data-glass-backdrop="true"]::before {
+  -webkit-backdrop-filter: blur(var(--miro-glass-blur)) saturate(var(--miro-glass-sat))
+    contrast(var(--miro-glass-contrast)) brightness(var(--miro-glass-brightness));
+  backdrop-filter: blur(var(--miro-glass-blur)) saturate(var(--miro-glass-sat))
+    contrast(var(--miro-glass-contrast)) brightness(var(--miro-glass-brightness));
+}
+
+.miro-glass-capsule[data-variant="card"]::before {
+  background-image:
+    radial-gradient(
+      115% 65% at var(--miro-glint-x) 0%,
+      rgb(255 255 255 / calc(var(--miro-sheen-top) * 0.42 + var(--miro-glass-lift) * 0.6)),
+      transparent 66%
+    ),
+    linear-gradient(
+      176deg,
+      rgb(255 255 255 / calc(var(--miro-sheen-mid) * 1.1)) 0%,
+      transparent 56%
+    );
+  box-shadow:
+    inset 0 0 0 0.5px var(--miro-edge-contrast),
+    inset 0 1px 0.5px 0 rgb(255 255 255 / calc(var(--miro-bevel-top) * 0.48)),
+    inset 0 -1px 1px 0 rgb(255 255 255 / calc(var(--miro-bevel-bottom) * 0.36)),
+    inset 1.5px 0 3px -1.5px rgb(98 206 255 / calc(var(--miro-ca-blue) * 0.45)),
+    inset -1.5px 0 3px -1.5px rgb(255 138 188 / calc(var(--miro-ca-rose) * 0.45));
+}
+
+/* Layer 1: Masked directional specular rim ring (sculpted highlights at light-catching arcs, whispering out on flanks) */
+.miro-glass-capsule::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      circle at var(--miro-glint-x) var(--miro-glint-y),
+      rgb(255 255 255 / var(--miro-glint-alpha)),
+      transparent 38%
+    ),
+    radial-gradient(
+      circle at 82% 98%,
+      rgb(255 255 255 / calc(var(--miro-rim-counter) * 0.85)),
+      transparent 34%
+    ),
+    linear-gradient(
+      148deg,
+      rgb(255 255 255 / var(--miro-rim-peak)) 0%,
+      rgb(175 230 255 / calc(var(--miro-rim-mid) * 2.2)) 22%,
+      rgb(255 255 255 / var(--miro-rim-mid)) 48%,
+      rgb(255 205 230 / calc(var(--miro-rim-mid) * 2)) 76%,
+      rgb(255 255 255 / var(--miro-rim-counter)) 100%
+    );
+
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.miro-glass-capsule[data-variant="panel"]::after {
+  padding: 1.15px;
+}
+
+/* Layer 2: Ultra-fine static optical micro-grain */
+.miro-glass-noise {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--miro-noise-image);
+  background-size: 96px 96px;
+  opacity: var(--miro-noise-alpha);
+}
+
+/* Layer 3: Fingertip light bloom on press (Glassy UI pattern) */
+.miro-glass-bloom {
+  position: absolute;
+  top: var(--lg-bloom-y, 50%);
+  left: var(--lg-bloom-x, 50%);
+  width: var(--lg-bloom-size, 0px);
+  height: var(--lg-bloom-size, 0px);
+  z-index: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    rgb(255 255 255 / 0.26),
+    rgb(255 255 255 / 0.06) 58%,
+    transparent
+  );
+  opacity: 0;
+  translate: -50% -50%;
+}
+
+html[data-backdrop-tone="bright"] .miro-glass-bloom,
+html.light .miro-glass-bloom {
+  background: radial-gradient(
+    closest-side,
+    rgb(255 255 255 / 0.6),
+    rgb(255 255 255 / 0.16) 58%,
+    transparent
+  );
+}
+
+/* Hover & Press states across all variants */
+@media (hover: hover) {
+  .miro-glass-capsule[data-interactive="true"]:hover,
+  .miro-glass-capsule[data-interactive="true"][data-force-hover="true"] {
+    --miro-glass-lift: 0.045;
+    --miro-rim-peak: 0.84;
+    --miro-rim-counter: 0.5;
+    --miro-glint-alpha: 0.82;
+    --miro-capsule-rise: 0.85;
+  }
+
+  .miro-glass-capsule[data-variant="card"][data-interactive="true"]:hover {
+    --miro-glass-lift: 0.05;
+    --miro-rim-peak: 0.62;
+    --miro-rim-counter: 0.34;
+    --miro-glint-alpha: 0.64;
+  }
+
+  .miro-glass-capsule[data-variant="focus"][data-interactive="true"]:hover,
+  .miro-glass-capsule[data-variant="focus"][data-interactive="true"][data-force-hover="true"] {
+    --miro-glass-lift: 0.065;
+    --miro-rim-peak: 0.9;
+    --miro-rim-counter: 0.52;
+    --miro-glint-alpha: 0.88;
+    transform: scale(1.035);
+  }
+
+  html[data-backdrop-tone="bright"] .miro-glass-capsule[data-interactive="true"]:hover,
+  html.light .miro-glass-capsule[data-interactive="true"]:hover {
+    --miro-glass-lift: 0.07;
+    --miro-rim-peak: 0.98;
+    --miro-rim-counter: 0.78;
+    --miro-glint-alpha: 1;
+  }
+}
+
+.miro-glass-capsule[data-interactive="true"][data-pressed="true"],
+.miro-glass-capsule[data-interactive="true"]:active {
+  --miro-capsule-rise: 0.35;
+  --miro-glass-lift: 0.07;
+  --miro-rim-peak: 0.88;
+  transform: scale(0.976);
+  transition-duration: 110ms;
+}
+
+.miro-glass-capsule[data-variant="card"][data-interactive="true"][data-pressed="true"],
+.miro-glass-capsule[data-variant="card"][data-interactive="true"]:active {
+  transform: scale(0.984);
+}
+
+.miro-glass-capsule[data-variant="focus"][data-interactive="true"][data-pressed="true"],
+.miro-glass-capsule[data-variant="focus"][data-interactive="true"]:active {
+  transform: scale(0.94);
+}
+
+.miro-glass-capsule:focus-visible {
+  outline: 1.5px solid var(--border-strong);
+  outline-offset: 2px;
+}
+
+/* Integrated translucent inner glass controls (Header buttons, Compact expand button, Settings sections) */
+.miro-glass-section {
+  position: relative;
+  border-radius: 14px;
+  background: var(--bg-card);
+  box-shadow:
+    inset 0 0 0 0.5px var(--border-hairline),
+    inset 0 1px 0 rgb(255 255 255 / 0.16);
+}
+
+.miro-glass-track {
+  border-radius: 9999px;
+  background: var(--miro-track-bg);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.12),
+    inset 0 0 0 0.5px var(--border-hairline);
+}
+
+.miro-glass-pill-btn {
+  border-radius: 9999px;
+  background: var(--miro-control-bg);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    inset 0 0 0 0.5px var(--border-hairline);
+  transition:
+    transform 220ms var(--lg-spring),
+    background-color 160ms var(--lg-ease-out),
+    box-shadow 180ms var(--lg-ease-out),
+    color 160ms var(--lg-ease-out);
+}
+
+@media (hover: hover) {
+  .miro-glass-pill-btn:hover {
+    background: var(--miro-control-hover);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.34),
+      inset 0 0 0 0.5px var(--border-strong);
+  }
+}
+
+.miro-glass-pill-btn:active {
+  transform: scale(0.95);
+  transition-duration: 90ms;
+}
+
+.miro-expand-btn {
+  position: relative;
+  transition:
+    transform 220ms var(--lg-spring),
+    background-color 180ms var(--lg-ease-out),
+    color 180ms var(--lg-ease-out),
+    box-shadow 180ms var(--lg-ease-out);
+}
+
+@media (hover: hover) {
+  .miro-expand-btn:hover {
+    background-color: var(--miro-control-hover);
+    color: var(--text-primary) !important;
+    box-shadow:
+      inset 0 0.5px 0 rgb(255 255 255 / 0.36),
+      inset 0 0 0 0.5px var(--border-hairline);
+    transform: scale(1.06);
+  }
+}
+
+.miro-expand-btn:active {
+  transform: scale(0.9);
+  transition-duration: 90ms;
+}
+
+/* ============================================================================
+   Restrained Status Feedback on Session Cards (No loud neon glow boxes)
+   ============================================================================ */
+
+@keyframes working-rim-pulse {
   0%,
   100% {
-    border-color: rgba(76, 195, 138, 0.45);
-    box-shadow: 0 0 0 1px rgba(76, 195, 138, 0.14), 0 0 10px rgba(76, 195, 138, 0.18);
+    box-shadow:
+      inset 0 0 0 0.5px rgba(76, 195, 138, 0.24),
+      inset 0 1px 0.75px 0 rgba(76, 195, 138, 0.36);
   }
   50% {
-    border-color: rgba(76, 195, 138, 0.95);
-    box-shadow: 0 0 0 1px rgba(76, 195, 138, 0.45), 0 0 16px rgba(76, 195, 138, 0.38);
+    box-shadow:
+      inset 0 0 0 0.5px rgba(76, 195, 138, 0.44),
+      inset 0 1px 0.75px 0 rgba(76, 195, 138, 0.58);
   }
 }
 
-@keyframes completed-border-flash {
-  0%,
+@keyframes completed-rim-settle {
+  0% {
+    box-shadow:
+      inset 0 0 0 0.75px rgba(90, 174, 255, 0.65),
+      inset 0 1px 1px 0 rgba(160, 210, 255, 0.75);
+  }
   100% {
-    border-color: rgba(77, 156, 246, 0.48);
-    box-shadow: 0 0 0 1px rgba(77, 156, 246, 0.12);
-  }
-  20%,
-  55% {
-    border-color: rgba(77, 156, 246, 1);
-    box-shadow: 0 0 0 1px rgba(77, 156, 246, 0.6), 0 0 16px rgba(77, 156, 246, 0.45);
-  }
-  38%,
-  75% {
-    border-color: rgba(77, 156, 246, 0.28);
-    box-shadow: none;
+    box-shadow:
+      inset 0 0 0 0.5px rgba(90, 174, 255, 0.24),
+      inset 0 1px 0.5px 0 rgba(90, 174, 255, 0.34);
   }
 }
 
 .card-working-glow {
-  border-color: rgba(76, 195, 138, 0.75);
-  animation: working-border-glow 1.8s ease-in-out infinite;
+  --miro-rim-peak: 0.52;
+}
+
+.card-working-glow::before {
+  animation: working-rim-pulse 2.8s ease-in-out infinite;
 }
 
 .card-completed-flash {
-  border-color: rgba(77, 156, 246, 0.52);
-  animation: completed-border-flash 1.6s ease-out 2;
+  --miro-rim-peak: 0.56;
+}
+
+.card-completed-flash::before {
+  animation: completed-rim-settle 1.2s var(--lg-ease-out) 1 forwards;
+}
+
+.card-waiting-accent::before {
+  box-shadow:
+    inset 0 0 0 0.5px rgba(247, 166, 70, 0.34),
+    inset 0 1px 0.75px 0 rgba(255, 200, 120, 0.42);
+}
+
+.card-error-accent::before {
+  box-shadow:
+    inset 0 0 0 0.5px rgba(248, 99, 110, 0.38),
+    inset 0 1px 0.75px 0 rgba(255, 145, 155, 0.44);
+}
+
+/* ============================================================================
+   Precision Jewel Status Orbs
+   ============================================================================ */
+
+.miro-status-orb {
+  position: relative;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  background-image: radial-gradient(
+    circle at 32% 28%,
+    rgb(255 255 255 / 0.62) 0%,
+    rgb(255 255 255 / 0.14) 36%,
+    transparent 65%
+  );
+  box-shadow:
+    inset 0 -1px 1.5px rgb(0 0 0 / 0.3),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.28);
+  transition:
+    transform 220ms var(--lg-spring),
+    box-shadow 220ms var(--lg-ease-out),
+    background-color 240ms var(--lg-ease-out),
+    opacity 220ms var(--lg-ease-out);
+}
+
+html[data-backdrop-tone="bright"] .miro-status-orb,
+html.light .miro-status-orb {
+  box-shadow:
+    inset 0 -1px 1.2px rgb(0 0 0 / 0.22),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.6),
+    0 0.5px 1.5px rgb(0 0 0 / 0.16);
+}
+
+.miro-status-orb[data-interactive="true"]:hover {
+  transform: scale(1.22);
+}
+
+.miro-status-orb[data-disconnected="true"] {
+  opacity: 0.45;
+  filter: saturate(0.5);
+}
+
+@keyframes miro-orb-breathe {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 -1px 1.5px rgb(0 0 0 / 0.3),
+      inset 0 0 0 0.5px rgb(255 255 255 / 0.28),
+      0 0 0 1px rgb(61 224 146 / 0.22),
+      0 0 4px rgb(61 224 146 / 0.26);
+  }
+  50% {
+    box-shadow:
+      inset 0 -1px 1.5px rgb(0 0 0 / 0.3),
+      inset 0 0 0 0.5px rgb(255 255 255 / 0.44),
+      0 0 0 1.5px rgb(61 224 146 / 0.38),
+      0 0 7px rgb(61 224 146 / 0.42);
+  }
+}
+
+.miro-status-orb[data-status="working"]:not([data-disconnected="true"]) {
+  animation: miro-orb-breathe 2.6s ease-in-out infinite;
+}
+
+.miro-status-orb[data-status="waiting"]:not([data-disconnected="true"]) {
+  box-shadow:
+    inset 0 -1px 1.5px rgb(0 0 0 / 0.28),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.3),
+    0 0 0 1.5px rgb(247 166 70 / 0.44),
+    0 0 5px rgb(247 166 70 / 0.28);
+}
+
+.miro-status-orb[data-status="error"]:not([data-disconnected="true"]) {
+  box-shadow:
+    inset 0 -1px 1.5px rgb(0 0 0 / 0.3),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.3),
+    0 0 0 1.5px rgb(248 99 110 / 0.5),
+    0 0 6px rgb(248 99 110 / 0.32);
+}
+
+@keyframes miro-orb-complete-settle {
+  0% {
+    transform: scale(0.88);
+    box-shadow:
+      inset 0 -1px 1.5px rgb(0 0 0 / 0.28),
+      0 0 0 0 rgb(90 174 255 / 0.52),
+      0 0 7px rgb(90 174 255 / 0.48);
+  }
+  45% {
+    transform: scale(1.16);
+    box-shadow:
+      inset 0 -1px 1.5px rgb(0 0 0 / 0.28),
+      0 0 0 2px rgb(90 174 255 / 0.26),
+      0 0 8px rgb(90 174 255 / 0.35);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      inset 0 -1px 1.5px rgb(0 0 0 / 0.3),
+      inset 0 0 0 0.5px rgb(255 255 255 / 0.28),
+      0 0 4px rgb(90 174 255 / 0.2);
+  }
+}
+
+.miro-status-orb[data-status="completed"]:not([data-disconnected="true"]) {
+  box-shadow:
+    inset 0 -1px 1.5px rgb(0 0 0 / 0.3),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.28),
+    0 0 4px rgb(90 174 255 / 0.2);
+}
+
+.miro-status-orb[data-just-completed="true"] {
+  animation: miro-orb-complete-settle 850ms var(--lg-ease-out) 1;
+}
+
+.miro-status-orb[data-status="idle"],
+.miro-status-orb[data-status="unknown"] {
+  opacity: 0.72;
+}
+
+/* ============================================================================
+   Expand / Collapse Liquid Morph Animations
+   ============================================================================ */
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-enter {
+  animation: toast-slide-in 220ms var(--lg-ease-out);
+}
+
+@keyframes miro-normal-enter {
+  from {
+    opacity: 0.8;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes miro-compact-from-focus {
+  from {
+    opacity: 0.8;
+    transform: scaleX(0.46) scaleY(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1) scaleY(1);
+  }
+}
+
+@keyframes miro-compact-from-normal {
+  from {
+    opacity: 0.78;
+    transform: scale(1.06, 1.12);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes miro-compact-inner-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes miro-focus-from-compact {
+  from {
+    opacity: 0.82;
+    transform: scaleX(1.2) scaleY(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1) scaleY(1);
+  }
+}
+
+@keyframes miro-focus-from-normal {
+  from {
+    opacity: 0.78;
+    transform: scale(1.14);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.miro-morph-normal-enter {
+  animation: miro-normal-enter 260ms var(--lg-spring) backwards;
+}
+
+.miro-morph-compact-focus {
+  animation: miro-compact-from-focus 300ms var(--lg-spring) backwards;
+}
+
+.miro-morph-compact-normal {
+  animation: miro-compact-from-normal 240ms var(--lg-ease-out) backwards;
+}
+
+.miro-morph-compact-focus .miro-compact-chrome,
+.miro-morph-compact-normal .miro-compact-chrome {
+  animation: miro-compact-inner-reveal 240ms var(--lg-ease-out) 40ms backwards;
+}
+
+.miro-morph-focus-compact {
+  animation: miro-focus-from-compact 280ms var(--lg-spring) backwards;
+}
+
+.miro-morph-focus-normal {
+  animation: miro-focus-from-normal 240ms var(--lg-ease-out) backwards;
+}
+
+/* ============================================================================
+   Accessibility: Reduced Transparency, Reduced Motion & High Contrast
+   ============================================================================ */
+
+html[data-reduce-transparency="true"] .miro-glass-capsule::before {
+  background-color: rgb(28 28 32 / 0.94) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html.light[data-reduce-transparency="true"] .miro-glass-capsule::before,
+html[data-reduce-transparency="true"][data-backdrop-tone="bright"] .miro-glass-capsule::before {
+  background-color: rgb(248 248 250 / 0.96) !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .miro-glass-capsule::before {
+    background-color: rgb(28 28 32 / 0.94) !important;
+    background-image: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  html.light .miro-glass-capsule::before,
+  html[data-backdrop-tone="bright"] .miro-glass-capsule::before {
+    background-color: rgb(248 248 250 / 0.96) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miro-glass-capsule,
+  .miro-glass-capsule::before,
+  .miro-expand-btn,
+  .miro-glass-pill-btn,
+  .miro-status-orb,
+  .toast-enter,
+  .card-working-glow::before,
+  .card-completed-flash::before,
+  .miro-morph-normal-enter,
+  .miro-morph-compact-focus,
+  .miro-morph-compact-normal,
+  .miro-morph-compact-focus .miro-compact-chrome,
+  .miro-morph-compact-normal .miro-compact-chrome,
+  .miro-morph-focus-compact,
+  .miro-morph-focus-normal {
+    animation: none !important;
+    transition-duration: 0ms !important;
+  }
+
+  .miro-glass-capsule[data-interactive="true"]:hover,
+  .miro-glass-capsule[data-interactive="true"]:active,
+  .miro-glass-capsule[data-variant="focus"][data-interactive="true"]:hover,
+  .miro-glass-capsule[data-variant="focus"][data-interactive="true"]:active,
+  .miro-status-orb[data-interactive="true"]:hover,
+  .miro-expand-btn:hover,
+  .miro-expand-btn:active,
+  .miro-glass-pill-btn:active {
+    transform: none !important;
+  }
+
+  .miro-glass-bloom {
+    display: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .miro-glass-capsule::after {
+    background: rgb(255 255 255 / 0.85);
+  }
+
+  html.light .miro-glass-capsule::after,
+  html[data-backdrop-tone="bright"] .miro-glass-capsule::after {
+    background: rgb(0 0 0 / 0.85);
+  }
 }
