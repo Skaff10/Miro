@@ -129,7 +129,10 @@ impl TranscriptScanner {
 
             if let Some(cached) = self.cache.get(&id) {
                 if let Some(meta) = cached.last_step.as_ref() {
-                    let last_act = meta.created_at_secs.or(mtime_secs);
+                    let last_act = match (meta.created_at_secs, mtime_secs) {
+                        (Some(a), Some(b)) => Some(a.max(b)),
+                        (a, b) => a.or(b),
+                    };
                     let age_secs = last_act.map(|t| now_secs.saturating_sub(t)).unwrap_or(0);
                     let (status, confidence, activity) = classify_transcript_step(
                         &meta.status,
@@ -237,26 +240,8 @@ impl TranscriptScanner {
                     if !tc.name.is_empty() {
                         tool_names.push(tc.name);
                     }
-                    if let Some(serde_json::Value::Object(map)) = tc.args {
-                        for key in [
-                            "Path",
-                            "TargetFile",
-                            "DirectoryPath",
-                            "SearchPath",
-                            "Cwd",
-                            "ScriptPath",
-                            "AbsolutePath",
-                            "WorkspacePath",
-                            "ProjectPath",
-                        ] {
-                            if let Some(serde_json::Value::String(p)) = map.get(key) {
-                                push_observed_path(&mut entry.observed_paths, p);
-                            }
-                        }
-                        if let Some(serde_json::Value::String(cmd)) = map.get("CommandLine") {
-                            let decoded_cmd = unescape_embedded_json_string(cmd);
-                            extract_drive_paths_from_command(&decoded_cmd, &mut entry.observed_paths);
-                        }
+                    if let Some(ref args_val) = tc.args {
+                        extract_paths_from_json_value(args_val, None, &mut entry.observed_paths);
                     }
                 }
                 entry.last_step = Some(TranscriptStepMeta {
@@ -275,10 +260,54 @@ impl TranscriptScanner {
     }
 }
 
+fn extract_paths_from_json_value(
+    val: &serde_json::Value,
+    key: Option<&str>,
+    list: &mut Vec<String>,
+) {
+    match val {
+        serde_json::Value::String(s) => {
+            if key.is_some_and(|k| {
+                k.eq_ignore_ascii_case("CommandLine") || k.eq_ignore_ascii_case("command")
+            }) {
+                let decoded_cmd = unescape_embedded_json_string(s);
+                extract_drive_paths_from_command(&decoded_cmd, list);
+                return;
+            }
+            let decoded = unescape_embedded_json_string(s);
+            let candidate = decoded
+                .strip_prefix("file:///")
+                .unwrap_or(decoded.as_str());
+            if looks_like_fs_path(candidate) {
+                push_observed_path(list, candidate);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                extract_paths_from_json_value(item, key, list);
+            }
+        }
+        serde_json::Value::Object(map) => {
+            for (k, v) in map {
+                extract_paths_from_json_value(v, Some(k.as_str()), list);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn extract_metadata_paths_from_content(text: &str, list: &mut Vec<String>) {
     for line in text.lines() {
         let trimmed = line.trim();
-        for prefix in ["Active Document:", "Workspace:", "Directory:"] {
+        for prefix in [
+            "Active Document:",
+            "Workspace:",
+            "Directory:",
+            "Working Directory:",
+            "Project:",
+            "Cwd:",
+            "Root:",
+        ] {
             if trimmed
                 .get(..prefix.len())
                 .is_some_and(|head| head.eq_ignore_ascii_case(prefix))
@@ -369,7 +398,7 @@ fn push_observed_path(list: &mut Vec<String>, raw_path: &str) {
         return;
     }
     if !list.iter().any(|existing| existing == trimmed) {
-        if list.len() >= 24 {
+        if list.len() >= 64 {
             list.remove(0);
         }
         list.push(trimmed.to_string());
@@ -391,6 +420,7 @@ fn is_container_folder(seg: &str) -> bool {
             | "dev"
             | "code"
             | "coding"
+            | "source"
             | "workspace"
             | "workspaces"
             | "github"
@@ -488,7 +518,7 @@ pub fn infer_workspace_folder(paths: &[String]) -> Option<String> {
             continue;
         }
         // Skip `Users/<name>` and common container directories when deeper segments exist.
-        let mut idx = if segments.len() >= 4 && segments[0].eq_ignore_ascii_case("Users") {
+        let mut idx = if segments.len() >= 3 && segments[0].eq_ignore_ascii_case("Users") {
             2
         } else {
             0

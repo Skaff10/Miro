@@ -102,14 +102,9 @@ export function App() {
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-glass-host", isTauriRuntime() ? "tauri" : "browser");
-    if (settings.theme === "light") {
-      root.classList.add("light");
-      root.classList.remove("dark");
-    } else {
-      root.classList.add("dark");
-      root.classList.remove("light");
-    }
-  }, [settings.theme]);
+    root.classList.add("dark");
+    root.classList.remove("light");
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

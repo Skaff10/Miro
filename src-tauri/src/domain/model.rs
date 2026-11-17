@@ -43,13 +43,6 @@ pub enum ConnectionState {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ThemeMode {
-    Dark,
-    Light,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub enum ProviderMode {
     Auto,
     Mock,
@@ -139,7 +132,6 @@ pub struct AppSettings {
     pub always_on_top: bool,
     pub start_minimized: bool,
     pub launch_at_startup: bool,
-    pub theme: ThemeMode,
     pub poll_interval_ms: u64,
     pub hotkey: String,
     pub show_idle_sessions: bool,
@@ -162,7 +154,6 @@ impl Default for AppSettings {
             always_on_top: true,
             start_minimized: false,
             launch_at_startup: false,
-            theme: ThemeMode::Dark,
             poll_interval_ms: 2500,
             hotkey: "Ctrl+Shift+A".to_string(),
             show_idle_sessions: true,

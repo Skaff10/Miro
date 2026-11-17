@@ -12,7 +12,7 @@ use crate::domain::model::{
     AgentSession, AgentStatus, HookIntegrationStatus, StatusConfidence,
 };
 use crate::providers::now_unix_secs;
-use crate::providers::transcript::short_session_title;
+use crate::providers::transcript::{resolve_workspace_from_disk, short_session_title};
 
 const HOOK_KEY_NAME: &str = "antigravity-agent-monitor";
 
@@ -294,9 +294,15 @@ impl HookEventTailer {
             let title = evt
                 .workspace_path
                 .as_deref()
-                .and_then(|p| Path::new(p).file_name().and_then(|n| n.to_str()))
-                .filter(|n| !n.is_empty())
-                .map(str::to_string)
+                .and_then(|p| {
+                    resolve_workspace_from_disk(&[p.to_string()]).or_else(|| {
+                        Path::new(p)
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .filter(|n| !n.is_empty())
+                            .map(str::to_string)
+                    })
+                })
                 .unwrap_or_else(|| short_session_title(id));
 
             out.push(AgentSession {

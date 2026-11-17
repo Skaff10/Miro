@@ -149,106 +149,18 @@
     --miro-glass-sat: 1.38;
   }
 
-  /* Bright/daylight desktop background adaptation (clear luminous silver-white glass + dark ink) */
+  /* Bright/daylight desktop background adaptation (deeper dark smoked glass so dark theme stays crisp & legible) */
   html[data-backdrop-tone="bright"] {
-    --text-primary: #111318;
-    --text-secondary: rgba(17, 19, 24, 0.78);
-    --text-muted: rgba(17, 19, 24, 0.62);
-    --text-shadow: 0 0.5px 0 rgb(255 255 255 / 0.55);
-
-    --bg-chrome: rgba(255, 255, 255, 0.16);
-    --bg-canvas: rgba(255, 255, 255, 0.18);
-    --bg-card: rgba(255, 255, 255, 0.22);
-    --bg-raised: rgba(255, 255, 255, 0.48);
-    --border-hairline: rgba(15, 23, 42, 0.08);
-    --border-strong: rgba(15, 23, 42, 0.18);
-
-    --status-working: #15803d;
-    --status-waiting: #b45309;
-    --status-completed: #1d4ed8;
-    --status-idle: #52525b;
-    --status-unknown: #71717a;
-    --status-error: #b91c1c;
-
-    --miro-glass-tint-rgb: 255 255 255;
-    --miro-glass-alpha-panel: 0.2;
-    --miro-glass-alpha-compact: 0.16;
-    --miro-glass-alpha-focus: 0.15;
-    --miro-glass-alpha-toast: 0.22;
-    --miro-glass-alpha-card: 0.2;
-    --miro-glass-ambient-alpha: 0.06;
-    --miro-glass-contrast: 1.06;
-    --miro-glass-brightness: 1.02;
-
-    --miro-sheen-top: 0.48;
-    --miro-sheen-mid: 0.1;
-    --miro-caustic-bottom: 0.22;
-    --miro-bevel-top: 0.96;
-    --miro-bevel-corner: 0.74;
-    --miro-bevel-bottom: 0.46;
-    --miro-inner-glow: 0.16;
-    --miro-inner-depth: 0.07;
-    --miro-ca-blue: 0.12;
-    --miro-ca-rose: 0.09;
-    --miro-shadow-near: 0.13;
-    --miro-shadow-far: 0.11;
-    --miro-edge-contrast: rgb(15 23 42 / 0.11);
-
-    --miro-control-bg: rgb(15 23 42 / 0.06);
-    --miro-control-hover: rgb(15 23 42 / 0.11);
-    --miro-control-active: rgb(255 255 255 / 0.8);
-    --miro-track-bg: rgb(15 23 42 / 0.06);
-    --miro-switch-off: rgb(15 23 42 / 0.18);
-  }
-
-  /* Explicit Light Theme preference over darker/mid backgrounds keeps frosted bright glass + dark ink */
-  html.light:not([data-backdrop-tone="bright"]) {
-    --text-primary: #14161b;
-    --text-secondary: rgba(20, 22, 27, 0.74);
-    --text-muted: rgba(20, 22, 27, 0.58);
-    --text-shadow: 0 0.5px 0 rgb(255 255 255 / 0.45);
-
-    --bg-chrome: rgba(255, 255, 255, 0.36);
-    --bg-canvas: rgba(255, 255, 255, 0.42);
-    --bg-card: rgba(255, 255, 255, 0.52);
-    --bg-raised: rgba(255, 255, 255, 0.72);
-    --border-hairline: rgba(15, 23, 42, 0.1);
-    --border-strong: rgba(15, 23, 42, 0.2);
-
-    --status-working: #15803d;
-    --status-waiting: #b45309;
-    --status-completed: #1d4ed8;
-    --status-idle: #52525b;
-    --status-unknown: #71717a;
-    --status-error: #b91c1c;
-
-    --miro-glass-tint-rgb: 252 253 255;
-    --miro-glass-alpha-panel: 0.24;
-    --miro-glass-alpha-compact: 0.22;
-    --miro-glass-alpha-focus: 0.2;
-    --miro-glass-alpha-toast: 0.28;
-    --miro-glass-alpha-card: 0.26;
+    --miro-glass-tint-rgb: 14 16 22;
+    --miro-glass-alpha-panel: 0.46;
+    --miro-glass-alpha-compact: 0.42;
+    --miro-glass-alpha-focus: 0.4;
+    --miro-glass-alpha-toast: 0.48;
+    --miro-glass-alpha-card: 0.34;
     --miro-glass-ambient-alpha: 0.08;
-
-    --miro-sheen-top: 0.54;
-    --miro-sheen-mid: 0.14;
-    --miro-caustic-bottom: 0.22;
-    --miro-bevel-top: 0.92;
-    --miro-bevel-corner: 0.7;
-    --miro-bevel-bottom: 0.44;
-    --miro-inner-glow: 0.14;
-    --miro-inner-depth: 0.05;
-    --miro-ca-blue: 0.12;
-    --miro-ca-rose: 0.09;
-    --miro-shadow-near: 0.15;
-    --miro-shadow-far: 0.14;
-    --miro-edge-contrast: rgb(15 23 42 / 0.07);
-
-    --miro-control-bg: rgb(15 23 42 / 0.07);
-    --miro-control-hover: rgb(15 23 42 / 0.12);
-    --miro-control-active: rgb(255 255 255 / 0.85);
-    --miro-track-bg: rgb(15 23 42 / 0.07);
-    --miro-switch-off: rgb(15 23 42 / 0.2);
+    --miro-glass-contrast: 1.08;
+    --miro-glass-brightness: 0.88;
+    --miro-edge-contrast: rgb(0 0 0 / 0.42);
   }
 
   /* Deep dark desktop wallpaper: ultra-low glass fill so wallpaper depth + bright specular rim pop */
@@ -408,32 +320,6 @@
   box-shadow:
     0 1px 2px -0.5px rgb(0 0 0 / calc(var(--miro-shadow-near) * 0.45)),
     0 2px 5px -2px rgb(0 0 0 / calc(var(--miro-shadow-far) * 0.4));
-}
-
-html[data-backdrop-tone="bright"] .miro-glass-capsule,
-html.light .miro-glass-capsule {
-  --miro-rim-peak: 0.96;
-  --miro-rim-counter: 0.44;
-  --miro-rim-mid: 0.1;
-  --miro-glint-alpha: 0.98;
-}
-
-html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="panel"],
-html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="compact"],
-html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="focus"],
-html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="toast"] {
-  box-shadow:
-    0 0 0 0.5px rgb(15 23 42 / 0.1),
-    0 1px 2.5px 0 rgb(15 23 42 / var(--miro-shadow-near)),
-    0 2.5px 4.5px -1px rgb(15 23 42 / var(--miro-shadow-far));
-}
-
-html[data-backdrop-tone="bright"] .miro-glass-capsule[data-variant="card"],
-html.light .miro-glass-capsule[data-variant="card"] {
-  --miro-rim-peak: 0.72;
-  --miro-rim-counter: 0.28;
-  --miro-rim-mid: 0.05;
-  --miro-glint-alpha: 0.68;
 }
 
 /* Children sit cleanly above optical material layers */
@@ -599,16 +485,6 @@ html[data-glass-host="browser"] .miro-glass-capsule[data-glass-backdrop="true"]:
   translate: -50% -50%;
 }
 
-html[data-backdrop-tone="bright"] .miro-glass-bloom,
-html.light .miro-glass-bloom {
-  background: radial-gradient(
-    closest-side,
-    rgb(255 255 255 / 0.6),
-    rgb(255 255 255 / 0.16) 58%,
-    transparent
-  );
-}
-
 /* Hover & Press states across all variants */
 @media (hover: hover) {
   .miro-glass-capsule[data-interactive="true"]:hover,
@@ -634,14 +510,6 @@ html.light .miro-glass-bloom {
     --miro-rim-counter: 0.52;
     --miro-glint-alpha: 0.88;
     transform: scale(1.035);
-  }
-
-  html[data-backdrop-tone="bright"] .miro-glass-capsule[data-interactive="true"]:hover,
-  html.light .miro-glass-capsule[data-interactive="true"]:hover {
-    --miro-glass-lift: 0.07;
-    --miro-rim-peak: 0.98;
-    --miro-rim-counter: 0.78;
-    --miro-glint-alpha: 1;
   }
 }
 
@@ -820,14 +688,6 @@ html.light .miro-glass-bloom {
     box-shadow 220ms var(--lg-ease-out),
     background-color 240ms var(--lg-ease-out),
     opacity 220ms var(--lg-ease-out);
-}
-
-html[data-backdrop-tone="bright"] .miro-status-orb,
-html.light .miro-status-orb {
-  box-shadow:
-    inset 0 -1px 1.2px rgb(0 0 0 / 0.22),
-    inset 0 0 0 0.5px rgb(255 255 255 / 0.6),
-    0 0.5px 1.5px rgb(0 0 0 / 0.16);
 }
 
 .miro-status-orb[data-interactive="true"]:hover {
@@ -1038,22 +898,12 @@ html[data-reduce-transparency="true"] .miro-glass-capsule::before {
   backdrop-filter: none !important;
 }
 
-html.light[data-reduce-transparency="true"] .miro-glass-capsule::before,
-html[data-reduce-transparency="true"][data-backdrop-tone="bright"] .miro-glass-capsule::before {
-  background-color: rgb(248 248 250 / 0.96) !important;
-}
-
 @media (prefers-reduced-transparency: reduce) {
   .miro-glass-capsule::before {
     background-color: rgb(28 28 32 / 0.94) !important;
     background-image: none !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
-  }
-
-  html.light .miro-glass-capsule::before,
-  html[data-backdrop-tone="bright"] .miro-glass-capsule::before {
-    background-color: rgb(248 248 250 / 0.96) !important;
   }
 }
 
@@ -1096,10 +946,5 @@ html[data-reduce-transparency="true"][data-backdrop-tone="bright"] .miro-glass-c
 @media (prefers-contrast: more) {
   .miro-glass-capsule::after {
     background: rgb(255 255 255 / 0.85);
-  }
-
-  html.light .miro-glass-capsule::after,
-  html[data-backdrop-tone="bright"] .miro-glass-capsule::after {
-    background: rgb(0 0 0 / 0.85);
   }
 }

@@ -625,3 +625,37 @@ fn test_fullscreen_detection_hysteresis_and_settings_backwards_compatibility() {
     assert_eq!(loaded.focus_mode_hotkey, "Ctrl+Alt+F");
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn test_mid_turn_working_classification_and_session_naming_improvements() {
+    // Model thinking after tool result (GENERIC) or user prompt (USER_INPUT) or system event stays Working past 15s
+    let (s_generic, _, _) =
+        classify_transcript_step("DONE", "MODEL", "GENERIC", false, &[], 45, true);
+    assert_eq!(s_generic, AgentStatus::Working);
+
+    let (s_user, _, _) =
+        classify_transcript_step("DONE", "USER_EXPLICIT", "USER_INPUT", false, &[], 45, true);
+    assert_eq!(s_user, AgentStatus::Working);
+
+    let (s_sys, _, _) =
+        classify_transcript_step("DONE", "SYSTEM", "SYSTEM_MESSAGE", false, &[], 30, true);
+    assert_eq!(s_sys, AgentStatus::Working);
+
+    // Non-interactive tool call stays Working up to 60s
+    let (s_tool, _, _) = classify_transcript_step(
+        "DONE",
+        "MODEL",
+        "PLANNER_RESPONSE",
+        true,
+        &["search_web".to_string()],
+        45,
+        true,
+    );
+    assert_eq!(s_tool, AgentStatus::Working);
+
+    // Window title with [Administrator] suffix still extracts workspace name
+    assert_eq!(
+        extract_workspace_from_title("main.rs - MIRO - Antigravity IDE - [Administrator]"),
+        Some("MIRO".to_string())
+    );
+}

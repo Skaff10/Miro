@@ -5,7 +5,6 @@ import type {
   HookIntegrationStatus,
   IndicatorPosition,
   ProviderMode,
-  ThemeMode,
 } from "../types/monitor";
 
 interface SettingsViewProps {
@@ -146,26 +145,6 @@ export function SettingsView({
                 Bottom right
               </option>
             </select>
-          </div>
-
-          <div className="px-3 py-2.5 flex items-center justify-between">
-            <span className="text-[var(--text-primary)]">Theme</span>
-            <div className="miro-glass-track flex items-center p-0.5 gap-0.5">
-              {(["dark", "light"] as ThemeMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => patch({ theme: mode })}
-                  className={`px-2.5 py-0.5 rounded-full capitalize text-[11px] transition-all duration-150 cursor-pointer ${
-                    settings.theme === mode
-                      ? "bg-[var(--miro-control-active)] text-[var(--text-primary)] font-medium shadow-[inset_0_1px_0_rgb(255_255_255_/_0.38),0_1px_2px_rgb(0_0_0_/_0.16)]"
-                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
           </div>
 
           <ToggleRow

@@ -166,9 +166,7 @@ fn merge_session(target: &mut AgentSession, incoming: AgentSession) {
         .is_some_and(|w| w.contains('\\') || w.contains('/'));
 
     if !incoming.title.starts_with("Session ")
-        && (target.title.starts_with("Session ")
-            || take_incoming_status
-            || incoming.title.len() > target.title.len())
+        && (target.title.starts_with("Session ") || take_incoming_status)
     {
         target.title = incoming.title;
     }
@@ -242,9 +240,24 @@ pub fn classify_transcript_step(
 
     if status_upper == "DONE" {
         if has_tool_calls {
-            // Tool calls were emitted and completed/in-flight before the final model turn.
+            // Tool calls were emitted and are executing or awaiting approval before the next model turn.
             let last_tool = tool_names.last().map(|s| s.as_str()).unwrap_or("tool");
-            if age_secs <= 15 {
+            if last_tool == "ask_question" {
+                if age_secs <= 300 {
+                    return (
+                        AgentStatus::Waiting,
+                        StatusConfidence::Inferred,
+                        Some("Waiting on user prompt".to_string()),
+                    );
+                }
+                return (
+                    AgentStatus::Idle,
+                    StatusConfidence::Inferred,
+                    Some("Paused on user prompt".to_string()),
+                );
+            }
+            let working_window = if is_interactive_tool(last_tool) { 30 } else { 60 };
+            if age_secs <= working_window {
                 return (
                     AgentStatus::Working,
                     StatusConfidence::Inferred,
@@ -266,7 +279,7 @@ pub fn classify_transcript_step(
         }
 
         if source_upper == "USER_EXPLICIT" || type_upper == "USER_INPUT" {
-            if age_secs <= 15 {
+            if age_secs <= 120 {
                 return (
                     AgentStatus::Working,
                     StatusConfidence::Inferred,
@@ -296,11 +309,19 @@ pub fn classify_transcript_step(
             );
         }
 
-        if source_upper == "MODEL" && type_upper == "GENERIC" && age_secs <= 15 {
+        if source_upper == "MODEL" && type_upper == "GENERIC" && age_secs <= 120 {
             return (
                 AgentStatus::Working,
                 StatusConfidence::Inferred,
-                Some("Executing agent step".to_string()),
+                Some("Generating response".to_string()),
+            );
+        }
+
+        if (source_upper == "SYSTEM" || type_upper == "SYSTEM_MESSAGE") && age_secs <= 120 {
+            return (
+                AgentStatus::Working,
+                StatusConfidence::Inferred,
+                Some("Processing system event".to_string()),
             );
         }
 

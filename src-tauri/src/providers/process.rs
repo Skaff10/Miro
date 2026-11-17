@@ -29,18 +29,22 @@ pub fn extract_workspace_from_title(title: &str) -> Option<String> {
         return None;
     }
     let parts: Vec<&str> = trimmed.split(" - ").collect();
-    if parts.len() >= 2 && parts.last().is_some_and(|p| p.contains("Antigravity")) {
-        let mut candidate = parts[parts.len() - 2].trim();
-        if let Some(stripped) = candidate.strip_suffix(" (Workspace)") {
-            candidate = stripped.trim();
-        }
-        if !candidate.is_empty()
-            && !candidate.eq_ignore_ascii_case("Antigravity IDE")
-            && !candidate.eq_ignore_ascii_case("Antigravity")
-            && !candidate.eq_ignore_ascii_case("Welcome")
-            && !candidate.eq_ignore_ascii_case("Get Started")
-        {
-            return Some(candidate.to_string());
+    if let Some(ag_idx) = parts.iter().rposition(|p| p.contains("Antigravity")) {
+        if ag_idx >= 1 {
+            let mut candidate = parts[ag_idx - 1].trim();
+            for suffix in [" (Workspace)", " [Administrator]"] {
+                if let Some(stripped) = candidate.strip_suffix(suffix) {
+                    candidate = stripped.trim();
+                }
+            }
+            if !candidate.is_empty()
+                && !candidate.eq_ignore_ascii_case("Antigravity IDE")
+                && !candidate.eq_ignore_ascii_case("Antigravity")
+                && !candidate.eq_ignore_ascii_case("Welcome")
+                && !candidate.eq_ignore_ascii_case("Get Started")
+            {
+                return Some(candidate.to_string());
+            }
         }
     }
     None

@@ -14,8 +14,6 @@ export type ConnectionState =
   | "degraded"
   | "error";
 
-export type ThemeMode = "dark" | "light";
-
 export type ProviderMode = "auto" | "mock";
 
 export type DisplayMode = "normal" | "compact" | "focus";
@@ -78,7 +76,6 @@ export interface AppSettings {
   alwaysOnTop: boolean;
   startMinimized: boolean;
   launchAtStartup: boolean;
-  theme: ThemeMode;
   pollIntervalMs: number;
   hotkey: string;
   showIdleSessions: boolean;
@@ -99,7 +96,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   alwaysOnTop: true,
   startMinimized: false,
   launchAtStartup: false,
-  theme: "dark",
   pollIntervalMs: 2500,
   hotkey: "Ctrl+Shift+A",
   showIdleSessions: true,
