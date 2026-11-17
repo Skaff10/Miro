@@ -26,22 +26,6 @@ export type IndicatorPosition =
   | "bottom-left"
   | "bottom-right";
 
-export type NotificationEventType =
-  | "completed"
-  | "failed"
-  | "attention"
-  | "started";
-
-export interface NotificationEvent {
-  id: string;
-  sessionId: string;
-  agentName: string;
-  eventType: NotificationEventType;
-  message: string;
-  timestamp: number;
-  read: boolean;
-}
-
 export interface AgentSession {
   id: string;
   title: string;
@@ -102,12 +86,6 @@ export interface AppSettings {
   displayMode: DisplayMode;
   autoFullscreenFocus: boolean;
   indicatorPosition: IndicatorPosition;
-  notifyOnCompleted: boolean;
-  notifyOnFailed: boolean;
-  notifyOnAttention: boolean;
-  notifyOnStarted: boolean;
-  notificationDurationSecs: number;
-  notificationSound: boolean;
   focusModeHotkey: string;
   expandCollapseHotkey: string;
   peekPanelHotkey: string;
@@ -129,12 +107,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   displayMode: "normal",
   autoFullscreenFocus: true,
   indicatorPosition: "bottom-right",
-  notifyOnCompleted: true,
-  notifyOnFailed: true,
-  notifyOnAttention: true,
-  notifyOnStarted: false,
-  notificationDurationSecs: 5,
-  notificationSound: false,
   focusModeHotkey: "Ctrl+Alt+F",
   expandCollapseHotkey: "Ctrl+Alt+M",
   peekPanelHotkey: "Ctrl+Alt+P",

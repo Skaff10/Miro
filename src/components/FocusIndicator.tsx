@@ -11,7 +11,6 @@ import { LiquidGlassCapsule } from "./LiquidGlassCapsule";
 interface FocusIndicatorProps {
   sessions: AgentSession[];
   connection: ConnectionState;
-  unreadAttentionOrError: boolean;
   transitionFrom?: DisplayMode | null;
   indicatorPosition?: IndicatorPosition;
   onExpand: () => void;
@@ -46,7 +45,6 @@ function priorityRank(status: AgentStatus): number {
 export function FocusIndicator({
   sessions,
   connection,
-  unreadAttentionOrError,
   transitionFrom = null,
   indicatorPosition = "bottom-right",
   onExpand,
@@ -90,7 +88,7 @@ export function FocusIndicator({
     (a, b) => priorityRank(a.status) - priorityRank(b.status)
   );
   const topDots = sorted.slice(0, 3);
-  const crowded = topDots.length >= 3 || (topDots.length >= 2 && unreadAttentionOrError);
+  const crowded = topDots.length >= 3;
 
   const originClass = indicatorPosition.endsWith("left")
     ? "origin-left"
@@ -137,13 +135,6 @@ export function FocusIndicator({
             style={{ backgroundColor: ORB_COLOR[s.status] }}
           />
         ))
-      )}
-
-      {unreadAttentionOrError && (
-        <span
-          aria-hidden="true"
-          className="w-[5px] h-[5px] rounded-full shrink-0 bg-[var(--lg-orb-waiting)] opacity-90"
-        />
       )}
     </LiquidGlassCapsule>
   );

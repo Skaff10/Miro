@@ -4,8 +4,6 @@ import { EmptyState } from "./components/EmptyState";
 import { FocusIndicator } from "./components/FocusIndicator";
 import { Header } from "./components/Header";
 import { LiquidGlassCapsule } from "./components/LiquidGlassCapsule";
-import { NotificationHistoryView } from "./components/NotificationHistoryView";
-import { NotificationToast } from "./components/NotificationToast";
 import { SessionCard } from "./components/SessionCard";
 import { SettingsView } from "./components/SettingsView";
 import {
@@ -34,15 +32,10 @@ import {
 import { useMonitorStore } from "./store/monitorStore";
 import type {
   AgentSession,
-  AgentStatus,
   AppSettings,
   DisplayMode,
   GlassRegion,
-  NotificationEvent,
-  NotificationEventType,
 } from "./types/monitor";
-import { playNotificationSound } from "./utils/sound";
-import { basenameFromPath } from "./utils/time";
 
 function getLayoutBox(node: HTMLElement): { x: number; y: number; width: number; height: number } {
   let x = 0;
@@ -66,26 +59,18 @@ export function App() {
     settings,
     hookStatus,
     settingsOpen,
-    historyOpen,
     displayMode,
     isFullscreenActive,
     peeking,
-    activeToasts,
-    notificationHistory,
     backdropSample,
     error,
     setSnapshot,
     setSettings,
     setHookStatus,
     setSettingsOpen,
-    setHistoryOpen,
     setDisplayMode,
     setFullscreenActive,
     setPeeking,
-    pushNotification,
-    dismissToast,
-    markAllHistoryRead,
-    clearHistory,
     setBackdropSample,
     setError,
   } = useMonitorStore();
@@ -94,8 +79,6 @@ export function App() {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const lastGeomRef = useRef<string>("");
   const lastRegionsRef = useRef<string>("");
-  const prevStatusesRef = useRef<Map<string, AgentStatus>>(new Map());
-  const initializedRef = useRef<boolean>(false);
   const hoveringPeekRef = useRef<boolean>(false);
   const lastNonFocusModeRef = useRef<DisplayMode>("normal");
   const prevEffectiveModeRef = useRef<DisplayMode | null>(null);
@@ -182,75 +165,6 @@ export function App() {
     return () => window.clearInterval(timer);
   }, [peeking, setPeeking]);
 
-  // Helper to evaluate state transitions and emit notifications
-  const processSnapshotTransitions = (nextSessions: AgentSession[]) => {
-    const currentSettings = useMonitorStore.getState().settings;
-    const prevMap = prevStatusesRef.current;
-
-    if (!initializedRef.current) {
-      for (const s of nextSessions) {
-        prevMap.set(s.id, s.status);
-      }
-      initializedRef.current = true;
-      return;
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    const nextMap = new Map<string, AgentStatus>();
-
-    for (const s of nextSessions) {
-      nextMap.set(s.id, s.status);
-      if (s.disconnected) continue;
-
-      const prev = prevMap.get(s.id);
-      if (prev === s.status) continue;
-
-      let eventType: NotificationEventType | null = null;
-      let defaultMsg = "";
-
-      if (s.status === "completed" && currentSettings.notifyOnCompleted) {
-        eventType = "completed";
-        defaultMsg = s.activity ?? "Task completed";
-      } else if (s.status === "error" && currentSettings.notifyOnFailed) {
-        eventType = "failed";
-        defaultMsg = s.activity ?? "Task failed";
-      } else if (s.status === "waiting" && currentSettings.notifyOnAttention) {
-        eventType = "attention";
-        defaultMsg = s.activity ?? "Requires your attention";
-      } else if (s.status === "working" && currentSettings.notifyOnStarted) {
-        eventType = "started";
-        defaultMsg = s.activity ?? "Task started";
-      }
-
-      if (eventType) {
-        const agentName =
-          basenameFromPath(s.workspace) ?? basenameFromPath(s.title) ?? s.title;
-        const evId = `${s.id}-${eventType}-${now}-${Math.random()
-          .toString(36)
-          .slice(2, 6)}`;
-        pushNotification({
-          id: evId,
-          sessionId: s.id,
-          agentName,
-          eventType,
-          message: defaultMsg,
-          timestamp: now,
-          read: false,
-        });
-        if (currentSettings.notificationSound) {
-          playNotificationSound(eventType);
-        }
-        if (currentSettings.notificationDurationSecs > 0) {
-          window.setTimeout(() => {
-            useMonitorStore.getState().dismissToast(evId);
-          }, currentSettings.notificationDurationSecs * 1000);
-        }
-      }
-    }
-
-    prevStatusesRef.current = nextMap;
-  };
-
   useEffect(() => {
     if (!isTauriRuntime()) {
       return;
@@ -275,7 +189,6 @@ export function App() {
           ]);
         if (cancelled) return;
         setSnapshot(initialSnap);
-        processSnapshotTransitions(initialSnap.sessions);
         setSettings(initialSettings);
         setHookStatus(hooks);
         setDisplayMode(initialSettings.displayMode);
@@ -288,7 +201,6 @@ export function App() {
 
         unlistenSnap = await subscribeSnapshot((next) => {
           setSnapshot(next);
-          processSnapshotTransitions(next.sessions);
           setNowSecs(Math.floor(Date.now() / 1000));
         });
 
@@ -354,19 +266,6 @@ export function App() {
     });
   }, [snapshot.sessions, settings.showIdleSessions]);
 
-  const unreadCount = useMemo(
-    () => notificationHistory.filter((n) => !n.read).length,
-    [notificationHistory]
-  );
-
-  const unreadAttentionOrError = useMemo(
-    () =>
-      notificationHistory.some(
-        (n) => !n.read && (n.eventType === "failed" || n.eventType === "attention")
-      ),
-    [notificationHistory]
-  );
-
   // Sync overlay window dimensions, corner positioning, and native DWM Liquid Glass regions across all modes
   useLayoutEffect(() => {
     const el = shellRef.current;
@@ -412,22 +311,12 @@ export function App() {
         targetW = 304;
         targetH = Math.ceil(Math.max(offsetH, scrollH, 80));
       } else if (effectiveMode === "compact") {
-        if (activeToasts.length > 0) {
-          targetW = 252;
-          targetH = Math.ceil(Math.max(el.scrollHeight, el.offsetHeight, 48));
-        } else {
-          targetW = 180;
-          targetH = 48;
-        }
+        targetW = 180;
+        targetH = 48;
       } else {
         // Focus mode
-        if (activeToasts.length > 0) {
-          targetW = 252;
-          targetH = Math.ceil(Math.max(el.scrollHeight, el.offsetHeight, 48));
-        } else {
-          targetW = 64;
-          targetH = 38;
-        }
+        targetW = 64;
+        targetH = 38;
       }
 
       const key = `${effectiveMode}:${settings.indicatorPosition}:${targetW}x${targetH}`;
@@ -472,9 +361,7 @@ export function App() {
     effectiveMode,
     settings.indicatorPosition,
     visibleSessions.length,
-    activeToasts.length,
     settingsOpen,
-    historyOpen,
     peeking,
     error,
     snapshot.connection,
@@ -527,102 +414,44 @@ export function App() {
     setDisplayMode(next);
   };
 
-  const handleSelectHistoryEvent = async (ev: NotificationEvent) => {
-    markAllHistoryRead();
-    const matching = snapshot.sessions.find((s) => s.id === ev.sessionId);
-    if (matching && isTauriRuntime()) {
-      await handleFocusSession(matching);
-    }
-    setHistoryOpen(false);
-  };
-
   const alignHorizontal = settings.indicatorPosition.endsWith("left")
     ? "items-start"
     : "items-end";
-  const anchorTop = settings.indicatorPosition.startsWith("top");
 
   if (effectiveMode === "focus") {
-    const focusNode = (
-      <div className="pointer-events-auto">
-        <FocusIndicator
-          sessions={visibleSessions}
-          connection={snapshot.connection}
-          unreadAttentionOrError={unreadAttentionOrError}
-          transitionFrom={transitionFrom}
-          indicatorPosition={settings.indicatorPosition}
-          onExpand={handleExpandToNormal}
-        />
-      </div>
-    );
-    const toastNode = activeToasts.length > 0 && (
-      <div className="w-[240px] pointer-events-auto">
-        <NotificationToast
-          toasts={activeToasts}
-          onExpand={handleExpandToNormal}
-          onDismiss={dismissToast}
-        />
-      </div>
-    );
-
     return (
       <div
         ref={shellRef}
         className={`w-full p-[6px] flex flex-col ${alignHorizontal} gap-1.5 bg-transparent pointer-events-none`}
       >
-        {anchorTop ? (
-          <>
-            {focusNode}
-            {toastNode}
-          </>
-        ) : (
-          <>
-            {toastNode}
-            {focusNode}
-          </>
-        )}
+        <div className="pointer-events-auto">
+          <FocusIndicator
+            sessions={visibleSessions}
+            connection={snapshot.connection}
+            transitionFrom={transitionFrom}
+            indicatorPosition={settings.indicatorPosition}
+            onExpand={handleExpandToNormal}
+          />
+        </div>
       </div>
     );
   }
 
   if (effectiveMode === "compact") {
-    const compactNode = (
-      <div className="pointer-events-auto">
-        <CompactIndicator
-          sessions={visibleSessions}
-          connection={snapshot.connection}
-          unreadCount={unreadCount}
-          transitionFrom={transitionFrom}
-          indicatorPosition={settings.indicatorPosition}
-          onExpand={handleExpandToNormal}
-        />
-      </div>
-    );
-    const toastNode = activeToasts.length > 0 && (
-      <div className="w-[240px] pointer-events-auto">
-        <NotificationToast
-          toasts={activeToasts}
-          onExpand={handleExpandToNormal}
-          onDismiss={dismissToast}
-        />
-      </div>
-    );
-
     return (
       <div
         ref={shellRef}
         className={`w-full p-[6px] flex flex-col ${alignHorizontal} gap-1.5 bg-transparent pointer-events-none`}
       >
-        {anchorTop ? (
-          <>
-            {compactNode}
-            {toastNode}
-          </>
-        ) : (
-          <>
-            {toastNode}
-            {compactNode}
-          </>
-        )}
+        <div className="pointer-events-auto">
+          <CompactIndicator
+            sessions={visibleSessions}
+            connection={snapshot.connection}
+            transitionFrom={transitionFrom}
+            indicatorPosition={settings.indicatorPosition}
+            onExpand={handleExpandToNormal}
+          />
+        </div>
       </div>
     );
   }
@@ -646,15 +475,8 @@ export function App() {
       >
         <Header
           settingsOpen={settingsOpen}
-          historyOpen={historyOpen}
-          unreadCount={unreadCount}
           displayMode={displayMode}
           onToggleSettings={() => setSettingsOpen(!settingsOpen)}
-          onToggleHistory={() => {
-            const next = !historyOpen;
-            setHistoryOpen(next);
-            if (next) markAllHistoryRead();
-          }}
           onCycleDisplayMode={handleCycleMode}
           onHideToTray={() => {
             if (isTauriRuntime()) {
@@ -686,7 +508,7 @@ export function App() {
 
         <main
           className={
-            settingsOpen || historyOpen
+            settingsOpen
               ? "max-h-[440px] overflow-y-auto overlay-scroll"
               : "overflow-hidden"
           }
@@ -710,14 +532,6 @@ export function App() {
                 }
               }}
             />
-          ) : historyOpen ? (
-            <NotificationHistoryView
-              events={notificationHistory}
-              nowSecs={nowSecs}
-              onMarkAllRead={markAllHistoryRead}
-              onClear={clearHistory}
-              onSelectEvent={handleSelectHistoryEvent}
-            />
           ) : visibleSessions.length === 0 ? (
             <EmptyState
               connection={snapshot.connection}
@@ -737,16 +551,6 @@ export function App() {
           )}
         </main>
       </LiquidGlassCapsule>
-
-      {!settingsOpen && !historyOpen && activeToasts.length > 0 && (
-        <div className="w-[288px] pt-2">
-          <NotificationToast
-            toasts={activeToasts}
-            onExpand={handleExpandToNormal}
-            onDismiss={dismissToast}
-          />
-        </div>
-      )}
     </div>
   );
 }

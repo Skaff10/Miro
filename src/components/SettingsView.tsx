@@ -115,8 +115,7 @@ export function SettingsView({
             />
             <p className="text-[10.5px] leading-[14px] text-[var(--text-muted)]">
               Switches to Focus Mode for borderless games and fullscreen video.
-              Exclusive DirectX/Vulkan fullscreen bypasses desktop overlays, so
-              events continue saving to History.
+              Exclusive DirectX/Vulkan fullscreen bypasses desktop overlays.
             </p>
           </div>
 
@@ -173,66 +172,6 @@ export function SettingsView({
             label="Show idle sessions"
             checked={settings.showIdleSessions}
             onChange={(v) => patch({ showIdleSessions: v })}
-          />
-        </div>
-      </section>
-
-      {/* Smart Notifications */}
-      <section className="space-y-1.5">
-        <h2 className="px-1 text-[11px] font-medium text-[var(--text-secondary)]">
-          Notifications
-        </h2>
-        <div className="miro-glass-section divide-y divide-[var(--border-hairline)]">
-          <ToggleRow
-            label="Task completed"
-            checked={settings.notifyOnCompleted}
-            onChange={(v) => patch({ notifyOnCompleted: v })}
-          />
-          <ToggleRow
-            label="Task failed"
-            checked={settings.notifyOnFailed}
-            onChange={(v) => patch({ notifyOnFailed: v })}
-          />
-          <ToggleRow
-            label="Agent requires attention"
-            checked={settings.notifyOnAttention}
-            onChange={(v) => patch({ notifyOnAttention: v })}
-          />
-          <ToggleRow
-            label="Task started"
-            checked={settings.notifyOnStarted}
-            onChange={(v) => patch({ notifyOnStarted: v })}
-          />
-
-          <div className="px-3 py-2.5 flex items-center justify-between gap-2">
-            <span className="text-[var(--text-primary)]">Duration</span>
-            <select
-              aria-label="Notification duration"
-              value={settings.notificationDurationSecs}
-              onChange={(e) =>
-                patch({ notificationDurationSecs: Number(e.target.value) })
-              }
-              className="px-2.5 py-1 rounded-full bg-[var(--miro-control-bg)] border border-[var(--border-hairline)] text-[11px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-strong)] cursor-pointer"
-            >
-              <option value={3} className="bg-[#1e2026] text-[#f5f6f8]">
-                3 seconds
-              </option>
-              <option value={5} className="bg-[#1e2026] text-[#f5f6f8]">
-                5 seconds
-              </option>
-              <option value={10} className="bg-[#1e2026] text-[#f5f6f8]">
-                10 seconds
-              </option>
-              <option value={0} className="bg-[#1e2026] text-[#f5f6f8]">
-                Until dismissed
-              </option>
-            </select>
-          </div>
-
-          <ToggleRow
-            label="Notification sounds"
-            checked={settings.notificationSound}
-            onChange={(v) => patch({ notificationSound: v })}
           />
         </div>
       </section>

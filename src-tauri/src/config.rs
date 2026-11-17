@@ -53,9 +53,6 @@ pub fn sanitize_settings(mut settings: AppSettings) -> AppSettings {
     settings.poll_interval_ms = settings.poll_interval_ms.clamp(1000, 30000);
     settings.window_width = 304;
     settings.window_height = settings.window_height.clamp(64, 680);
-    if !matches!(settings.notification_duration_secs, 0 | 3 | 5 | 10) {
-        settings.notification_duration_secs = 5;
-    }
     if settings.hotkey.trim().is_empty() {
         settings.hotkey = "Ctrl+Shift+A".to_string();
     }

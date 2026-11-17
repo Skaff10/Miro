@@ -13,7 +13,6 @@ import { LiquidGlassCapsule, triggerGlassBloom } from "./LiquidGlassCapsule";
 interface CompactIndicatorProps {
   sessions: AgentSession[];
   connection: ConnectionState;
-  unreadCount: number;
   transitionFrom?: DisplayMode | null;
   indicatorPosition?: IndicatorPosition;
   onExpand: () => void;
@@ -31,7 +30,6 @@ const ORB_COLOR: Record<AgentStatus, string> = {
 export function CompactIndicator({
   sessions,
   connection,
-  unreadCount,
   transitionFrom = null,
   indicatorPosition = "bottom-right",
   onExpand,
@@ -201,12 +199,6 @@ export function CompactIndicator({
         className="miro-compact-chrome miro-expand-btn w-6 h-6 mr-1.5 rounded-full inline-flex items-center justify-center text-[var(--text-secondary)] shrink-0 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-strong)]"
       >
         <Maximize2 className="w-[10px] h-[10px]" strokeWidth={1.6} />
-        {unreadCount > 0 && (
-          <span
-            aria-hidden="true"
-            className="absolute top-[1.5px] right-[1.5px] w-[4.5px] h-[4.5px] rounded-full bg-[var(--lg-orb-completed)] shadow-[0_0_0_1px_rgb(255_255_255_/_0.5)]"
-          />
-        )}
       </button>
     </LiquidGlassCapsule>
   );

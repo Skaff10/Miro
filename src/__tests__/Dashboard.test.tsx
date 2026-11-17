@@ -71,13 +71,10 @@ describe("MIRO Compact Overlay Dashboard", () => {
       hookStatus: null,
       filter: "all",
       settingsOpen: false,
-      historyOpen: false,
       displayMode: "normal",
       preFullscreenMode: null,
       isFullscreenActive: false,
       peeking: false,
-      activeToasts: [],
-      notificationHistory: [],
       backdropSample: null,
       loading: false,
       error: null,
@@ -88,10 +85,13 @@ describe("MIRO Compact Overlay Dashboard", () => {
     cleanup();
   });
 
-  it("renders compact header with logo, settings, and minimize buttons only", () => {
+  it("renders compact header with logo, settings, and minimize buttons without notification history", () => {
     render(<App />);
     expect(screen.getByLabelText("Logo")).toBeInTheDocument();
     expect(screen.queryByText("MIRO")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /notification history/i })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open settings" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Minimize to system tray" })
@@ -236,28 +236,6 @@ describe("MIRO Compact Overlay Dashboard", () => {
     });
     expect(useMonitorStore.getState().displayMode).toBe("normal");
     expect(screen.getByTestId("session-card-sess-1")).toBeInTheDocument();
-  });
-
-  it("preserves dismissed notifications in Event History", () => {
-    useMonitorStore.getState().pushNotification({
-      id: "notif-1",
-      sessionId: "sess-1",
-      agentName: "MIRO",
-      eventType: "completed",
-      message: "Turn completed",
-      timestamp: nowSecs - 5,
-      read: false,
-    });
-    render(<App />);
-
-    expect(screen.getByTestId("notification-toast-stack")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss notification" }));
-    expect(screen.queryByTestId("notification-toast-stack")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Notification history" }));
-    expect(screen.getByTestId("notification-history-view")).toBeInTheDocument();
-    expect(screen.getByText("MIRO")).toBeInTheDocument();
-    expect(screen.getByText("Turn completed")).toBeInTheDocument();
   });
 
   it("renders single-surface liquid glass capsules with press feedback and mode morph classes", () => {

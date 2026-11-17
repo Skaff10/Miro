@@ -152,6 +152,7 @@ pub fn setup_window_and_tray(
     let is_autostart_launch = std::env::args().any(|a| a == "--autostart" || a == "--minimized");
 
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
+        let _ = window.set_skip_taskbar(true);
         enable_taskbar_minimize_style(&window);
         crate::backdrop::prepare_window_for_glass(&window);
 
@@ -416,8 +417,7 @@ pub fn toggle_overlay_visibility(app: &AppHandle) {
 }
 
 pub fn minimize_to_taskbar(window: &WebviewWindow) {
-    let _ = window.set_skip_taskbar(false);
-    let _ = window.minimize();
+    hide_to_tray(window);
 }
 
 pub fn hide_to_tray(window: &WebviewWindow) {
@@ -436,7 +436,7 @@ pub fn hide_to_tray(window: &WebviewWindow) {
 }
 
 pub fn show_overlay_non_focusing(window: &WebviewWindow) {
-    let _ = window.set_skip_taskbar(false);
+    let _ = window.set_skip_taskbar(true);
     if window.is_minimized().unwrap_or(false) {
         let _ = window.unminimize();
     }

@@ -1,24 +1,18 @@
-import { Bell, EyeOff, Minus, Settings, X } from "lucide-react";
+import { EyeOff, Minus, Settings, X } from "lucide-react";
 import type { DisplayMode } from "../types/monitor";
 
 interface HeaderProps {
   settingsOpen: boolean;
-  historyOpen: boolean;
-  unreadCount: number;
   displayMode: DisplayMode;
   onToggleSettings: () => void;
-  onToggleHistory: () => void;
   onCycleDisplayMode: () => void;
   onHideToTray: () => void;
 }
 
 export function Header({
   settingsOpen,
-  historyOpen,
-  unreadCount,
   displayMode,
   onToggleSettings,
-  onToggleHistory,
   onCycleDisplayMode,
   onHideToTray,
 }: HeaderProps) {
@@ -74,32 +68,6 @@ export function Header({
             className="miro-expand-btn w-7 h-7 rounded-full inline-flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-strong)]"
           >
             <EyeOff className="w-3.5 h-3.5" strokeWidth={1.6} />
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleHistory}
-            aria-label={
-              historyOpen ? "Close notification history" : "Notification history"
-            }
-            title="Notification history"
-            className={`miro-expand-btn relative w-7 h-7 rounded-full inline-flex items-center justify-center cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--border-strong)] ${
-              historyOpen
-                ? "bg-[var(--miro-control-hover)] text-[var(--text-primary)] shadow-[inset_0_0.5px_0_rgb(255_255_255_/_0.35),inset_0_0_0_0.5px_var(--border-hairline)]"
-                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            {historyOpen ? (
-              <X className="w-3.5 h-3.5" strokeWidth={1.6} />
-            ) : (
-              <Bell className="w-3.5 h-3.5" strokeWidth={1.6} />
-            )}
-            {!historyOpen && unreadCount > 0 && (
-              <span
-                aria-hidden="true"
-                className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[var(--lg-orb-completed)] shadow-[0_0_0_1px_rgb(255_255_255_/_0.45)]"
-              />
-            )}
           </button>
 
           <button

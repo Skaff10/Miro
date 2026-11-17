@@ -622,11 +622,6 @@ fn test_fullscreen_detection_hysteresis_and_settings_backwards_compatibility() {
     assert_eq!(loaded.display_mode, DisplayMode::Normal);
     assert!(loaded.auto_fullscreen_focus);
     assert_eq!(loaded.indicator_position, IndicatorPosition::BottomRight);
-    assert!(loaded.notify_on_completed);
-    assert!(loaded.notify_on_failed);
-    assert!(loaded.notify_on_attention);
-    assert!(!loaded.notify_on_started);
-    assert_eq!(loaded.notification_duration_secs, 5);
     assert_eq!(loaded.focus_mode_hotkey, "Ctrl+Alt+F");
     let _ = fs::remove_dir_all(&dir);
 }
